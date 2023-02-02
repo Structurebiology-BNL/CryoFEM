@@ -1,0 +1,31 @@
+{
+    "general": {
+        "seed": 3,
+        "gpu_id": 0,
+        "debug": 0
+    },
+    "data": {
+        "data_path": "/hpcgpfs01/scratch/xdai/emdb_data",
+        "augmentation": 1,
+        "box_size": 64,
+        "core_size": 50
+    },
+    "training": {
+        "epochs": 60,
+        "batch_size": 16,
+        "loss_1_type": "l1",
+        "smooth_l1_beta": 0.1,
+        "cc_weight": 0.5,
+        "cc_type": "kernel_pcc",
+        "lr": 2e-05,
+        "val_ratio": 0.2,
+        "scheduler_step_size": 10,
+        "lr_decay": 0.5,
+        "weight_decay": 1e-05
+    },
+    "model": {
+        "model_type": "unetres",
+        "n_blocks": 2,
+        "act_mode": "R"
+    }
+}

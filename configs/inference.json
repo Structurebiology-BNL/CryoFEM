@@ -1,0 +1,15 @@
+{
+    "general": {
+        "seed": 3,
+        "gpu_id": 0
+    },
+    "test_data": {
+        "data_path": "/host/emdb_data",
+        "emd_id_path": "data_processing/sample_id.txt",
+        "save_output": 1
+    },
+    "checkpoint": {
+        "model_config": "models/trained_weights/config.json",
+        "trained_weights": "models/trained_weights/ResEM_state_dict.pt"
+    }
+}
