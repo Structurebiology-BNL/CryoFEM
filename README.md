@@ -1,14 +1,14 @@
 ## Introduction
-ResEM(**Res**olution **E**nhance**M**ent) is an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It can effectively increase the resolution (calculated from FSC) of the density map hence facilitate better map interpretation at the atomic level.
+This is the official implementation of ResEM, (**Res**olution **E**nhance**M**ent) [[preprint](https://www.biorxiv.org/content/early/2023/02/03/2023.02.02.526877)], which is an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It can effectively increase the resolution (calculated from FSC) of the density map hence facilitate better map interpretation at the atomic level.
 
 
 ## Requirements
 ResEM is developed with Python 3.9 and PyTorch 1.12. Other important packages include:
 ```
-torchio
-gemmi
-skimage
-mrcfile
+torchio 0.18.86
+gemmi 0.5.8
+scikit-image 0.19.3 
+mrcfile 1.4.3
 ```
 <!-- where [torchio](https://torchio.readthedocs.io/) is used for data augmentation in the training, [gemmi](https://gemmi.readthedocs.io/en/latest/) is for averaging half-maps,  -->
 
@@ -41,3 +41,14 @@ python train_model.py --config configs/train.json
 
 ### Cite
 If you find our work helpful, please consider cite our work as follows:
+```
+@article {resem2022,
+	author = {Dai, Xin and Wu, Longlong and Yoo, Shinjae and Liu, Qun},
+	title = {Integrating AlphaFold and deep learning for atomistic interpretation of cryo-EM maps},
+	year = {2023},
+	doi = {10.1101/2023.02.02.526877},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2023/02/03/2023.02.02.526877},
+	journal = {bioRxiv}
+}
+```
