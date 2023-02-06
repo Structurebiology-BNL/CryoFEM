@@ -1,5 +1,5 @@
 ## Introduction
-This is the official implementation of ResEM, (**Res**olution **E**nhance**M**ent) [[preprint](https://www.biorxiv.org/content/early/2023/02/03/2023.02.02.526877)], which is an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It can effectively increase the resolution (calculated from FSC) of the density map hence facilitate better map interpretation at the atomic level.
+This is the official implementation of ResEM (**Res**olution **E**nhance**M**ent)[[preprint](https://www.biorxiv.org/content/early/2023/02/03/2023.02.02.526877)], an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It can effectively increase the resolution (calculated from FSC) of the density map hence facilitate better map interpretation at the atomic level.
 
 
 ## Requirements
@@ -12,7 +12,7 @@ mrcfile 1.4.3
 ```
 <!-- where [torchio](https://torchio.readthedocs.io/) is used for data augmentation in the training, [gemmi](https://gemmi.readthedocs.io/en/latest/) is for averaging half-maps,  -->
 
-* 3rd party depency: we use [ChimeraX](https://www.cgl.ucsf.edu/chimerax/) to perform map resampling (making each voxel has the dimension of 1<span>&#8491;</span>) and target simulation (generate target maps using deposited PDB models)
+* 3rd party dependency: we use [ChimeraX](https://www.cgl.ucsf.edu/chimerax/) to perform map resampling (making each voxel has the dimension of 1<span>&#8491;</span>) and target simulation (generate target maps using deposited PDB models)
 
 ## Usage
 
