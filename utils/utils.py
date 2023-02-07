@@ -61,7 +61,7 @@ def load_data(conf, training=True):
         return test_dataloader
 
 
-def logging_related(output_path=None, debug=True):
+def logging_related(output_path=None, debug=True, training=True):
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
@@ -69,10 +69,13 @@ def logging_related(output_path=None, debug=True):
     stdout_handler.setLevel(logging.DEBUG)
     stdout_handler.setFormatter(formatter)
     logger.addHandler(stdout_handler)
-
+    if training:
+        log_filename = str(output_path) + "/training.log"
+    else:
+        log_filename = str(output_path) + "/inference.log"
     if not debug:
         assert output_path is not None, "need valid log output path"
-        log_filename = str(output_path) + "/training.log"
+
         file_handler = logging.FileHandler(log_filename)
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)

@@ -26,11 +26,11 @@ mrcfile 1.4.3
 All the data used in the training and validation of ResEM are publicly available from [PDB](https://www.rcsb.org/) and [EMDB](https://www.emdataresource.org/)
 
 * After downloading the half-maps from EMDB, using `data_processing/generate_averaged_map_from_half_maps.py` to compute and save the averaged raw map.
-* Checkout `data_processing/map_resampling_simulation.py` to see how to resample the raw map and simulate the target map using ChimeraX.
+* Checkout `data_processing/map_resampling_simulation.py` to see how to resample the raw map and simulate the target map using ChimeraX. 
 
 ### Inference
 1. Download our trained model from [Google drive](https://drive.google.com/file/d/1hCaEbYxQV56JIpN2c2iJSiiKAgRu7TT6/view?usp=sharing)
-2. We provide a sample inference configurations in `configs/inference.json`. After tuning the options, e.g., input data path, trained weights path, GPU id, run the inference script as:
+2. We provide a sample data at `example_data` and the corresponding inference configuration at `configs/inference.json`. After tuning the options, e.g., input data path, trained weights path, GPU id, run the inference script as:
 ```
 python inference.py --inference_config configs/inference.json 
 ```

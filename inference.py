@@ -117,7 +117,7 @@ if __name__ == "__main__":
     """
     logging related part
     """
-    logging_related(output_path=output_path, debug=False)
+    logging_related(output_path=output_path, debug=False, training=False)
     inference(conf)
     end = timer()
     logging.info("Total time used: {:.1f}".format(end - start))
