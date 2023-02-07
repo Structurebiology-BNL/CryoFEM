@@ -4,7 +4,7 @@ This is the official implementation of ResEM (**Res**olution **E**nhance**M**ent
 
 Our image enhancement model can be used synergistically with [AlphaFold](https://github.com/deepmind/alphafold) and protein model refinement tools, e.g., [PHENIX](https://phenix-online.org/), to tackle cases where initial AlphaFold predictions are less accurate.
 
-<img src="https://github.com/Structurebiology-BNL/ResEM/blob/main/utils/flow_chart.png" width=35% height=35%>
+<img src="https://github.com/Structurebiology-BNL/ResEM/blob/main/utils/flow_chart.png" width=45% height=45%>
 
 In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold), [PHENIX customized version](https://phenix-online.org/version_docs/dev-4380/reference/alphafold_in_colab.html) to implement the proposed workflow. 
 
