@@ -36,7 +36,7 @@ All the data used in the training and validation of ResEM are publicly available
 ```
 python inference.py --inference_config configs/inference.json 
 ```
-3. If `{"test_data": "save_output"=1}`, the output maps will be saved to `./results/inference/yyyy-mm-dd-current-clock-time`.
+3. If `{"test_data": "save_output"=1}`, the output maps will be saved to `./results/inference/yyyy-mm-dd-current-clock-time`. It would take around 10s using the sample map on a Nvidia V100 GPU.
 
 ### Training
 1. In addition to the resampled raw map, you'll need simulated maps as the targets to train the model. By default, `data_processing/map_resampling_simulation.py` will save the simulated map as `simulated_map_{xxx}_res_2_vol_1.mrc`, where `{xxx}` denotes the EMDB ID, `res_2` and `vol_1` indicate the simulated resolution of 2 <span>&#8491;</span> and voxel size of 1 <span>&#8491;</span>, respectively.
