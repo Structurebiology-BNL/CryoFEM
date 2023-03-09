@@ -5,7 +5,7 @@ import mrcfile
 import pathlib
 from copy import deepcopy
 import torchio
-from .map_splitter import create_manifest
+from .map_splitter import create_cube_list
 
 
 class CryoEM_Map_Dataset(torch.utils.data.Dataset):
@@ -68,10 +68,12 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
 
         original_shape = input_map.shape
         input_cube_list = np.array(
-            create_manifest(input_map, box_size=self.box_size, core_size=self.core_size)
+            create_cube_list(
+                input_map, box_size=self.box_size, core_size=self.core_size
+            )
         )
         simulated_cube_list = np.array(
-            create_manifest(
+            create_cube_list(
                 simulated_map, box_size=self.box_size, core_size=self.core_size
             )
         )
@@ -114,7 +116,9 @@ class CryoEM_Map_TestDataset(torch.utils.data.Dataset):
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         original_shape = input_map.shape
         input_cube_list = np.array(
-            create_manifest(input_map, box_size=self.box_size, core_size=self.core_size)
+            create_cube_list(
+                input_map, box_size=self.box_size, core_size=self.core_size
+            )
         )
 
         return (

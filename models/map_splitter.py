@@ -24,7 +24,7 @@ def get_manifest_dimensions(image_shape, core_size=50):
 
 
 # Creates a list of 64^3 tensors. Each tensor can be fed to the CNN independently.
-def create_manifest(full_image, box_size=64, core_size=50):
+def create_cube_list(full_image, box_size=64, core_size=50):
     image_shape = np.shape(full_image)
     padded_image = np.zeros(
         (
@@ -39,7 +39,7 @@ def create_manifest(full_image, box_size=64, core_size=50):
         box_size : box_size + image_shape[2],
     ] = full_image
 
-    manifest = []
+    cube_list = []
 
     start_point = box_size - int((box_size - core_size) / 2)
     cur_x = start_point
@@ -49,7 +49,7 @@ def create_manifest(full_image, box_size=64, core_size=50):
         next_chunk = padded_image[
             cur_x : cur_x + box_size, cur_y : cur_y + box_size, cur_z : cur_z + box_size
         ]
-        manifest.append(next_chunk)
+        cube_list.append(next_chunk)
         cur_x += core_size
         if cur_x + (box_size - core_size) / 2 >= image_shape[0] + box_size:
             cur_y += core_size
@@ -58,11 +58,11 @@ def create_manifest(full_image, box_size=64, core_size=50):
                 cur_z += core_size
                 cur_y = start_point  # Reset
                 cur_x = start_point  # Reset
-    return manifest
+    return cube_list
 
 
 # Takes the output of the CNN and reconstructs the full dimensionality of the protein.
-def reconstruct_maps(manifest, image_shape, box_size=64, core_size=50):
+def reconstruct_maps(cube_list, image_shape, box_size=64, core_size=50):
     extract_start = int((box_size - core_size) / 2)
     extract_end = int((box_size - core_size) / 2) + core_size
     dimensions = get_manifest_dimensions(image_shape, core_size=core_size)
@@ -76,7 +76,7 @@ def reconstruct_maps(manifest, image_shape, box_size=64, core_size=50):
                     x_steps * core_size : (x_steps + 1) * core_size,
                     y_steps * core_size : (y_steps + 1) * core_size,
                     z_steps * core_size : (z_steps + 1) * core_size,
-                ] = manifest[counter][
+                ] = cube_list[counter][
                     extract_start:extract_end,
                     extract_start:extract_end,
                     extract_start:extract_end,
