@@ -13,7 +13,9 @@ core_size: Core of the image where we don't need to worry about boundary issues.
 """
 import numpy as np
 import math
-
+import torch
+from copy import deepcopy
+import skimage
 
 def get_manifest_dimensions(image_shape, core_size=50):
     dimensions = [0, 0, 0]
@@ -87,3 +89,35 @@ def reconstruct_maps(cube_list, image_shape, box_size=64, core_size=50):
         : image_shape[0], : image_shape[1], : image_shape[2]
     ]
     return reconstruct_image
+
+
+def map_resample(input_map):
+    vol_x, vol_y, vol_z = (
+        float(input_map.voxel_size.x),
+        float(input_map.voxel_size.y),
+        float(input_map.voxel_size.z),
+    )
+    voxel_size = [vol_x, vol_y, vol_z]
+    meta_data = deepcopy(input_map.header)
+    input_map = deepcopy(input_map.data)
+    scale_factor = [vol / 1.0 for vol in voxel_size]
+    output_shape = [
+        round(dim * scale) for dim, scale in zip(input_map.shape, scale_factor)
+    ]
+
+    input_map = skimage.transform.resize(
+        input_map,
+        output_shape,
+        order=3,
+        mode="reflect",
+        cval=0,
+        clip=True,
+        preserve_range=False,
+        anti_aliasing=True,
+        anti_aliasing_sigma=None,
+    )
+
+    input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
+    input_cube_list = np.array(create_cube_list(input_map))
+
+    return torch.tensor(input_cube_list, dtype=torch.float), meta_data

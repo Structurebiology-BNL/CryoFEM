@@ -2,6 +2,8 @@ import numpy as np
 import logging
 import sys
 import torch
+from torchvision.datasets.utils import download_url
+import gemmi
 from models.data_load import CryoEM_Map_Dataset, CryoEM_Map_TestDataset
 
 
@@ -97,3 +99,41 @@ def pearson_cc(x, y):
     mean_xy = np.mean(x * y)
 
     return np.mean((mean_xy - mean_x * mean_y) / (np.sqrt(var_x * var_y)) + 1e-10)
+
+
+def download_half_maps(emdb_id):
+    half_map_1 = "https://files.wwpdb.org/pub/emdb/structures/EMD-{}/other/emd_{}_half_map_1.map.gz".format(
+        emdb_id, emdb_id
+    )
+    half_map_2 = "https://files.wwpdb.org/pub/emdb/structures/EMD-{}/other/emd_{}_half_map_2.map.gz".format(
+        emdb_id, emdb_id
+    )
+    download_successful = False
+    try:
+        download_url(half_map_1, "./", filename="emd_{}_half_1.map.gz".format(emdb_id))
+        download_url(half_map_2, "./", filename="emd_{}_half_2.map.gz".format(emdb_id))
+        # /content/ResEM/ResEM/emd_23274_half_1.map.gz
+        m1 = gemmi.read_ccp4_map("./emd_{}_half_1.map.gz".format(emdb_id))
+        m1_arr = np.array(m1.grid, copy=False)
+        m2 = gemmi.read_ccp4_map("./emd_{}_half_2.map.gz".format(emdb_id))
+        m2_arr = np.array(m2.grid, copy=False)
+        ## create a new map using gemmi
+        ccp4 = gemmi.Ccp4Map()
+        ccp4.grid = gemmi.FloatGrid((m1_arr + m2_arr) / 2)
+        ccp4.grid.unit_cell.set(
+            m1.grid.unit_cell.a,
+            m1.grid.unit_cell.b,
+            m1.grid.unit_cell.c,
+            m1.grid.unit_cell.alpha,
+            m1.grid.unit_cell.beta,
+            m1.grid.unit_cell.gamma,
+        )
+
+        ccp4.grid.spacegroup = m1.grid.spacegroup
+        ccp4.update_ccp4_header()
+        ccp4.write_ccp4_map("averaged_map_{}.ccp4".format(emdb_id))
+        download_successful = True
+    except:
+        print("no half maps available for the EMBD-{}".format(emdb_id))
+
+    return download_successful
