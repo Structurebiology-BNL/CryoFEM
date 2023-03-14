@@ -17,6 +17,7 @@ import torch
 from copy import deepcopy
 import skimage
 
+
 def get_manifest_dimensions(image_shape, core_size=50):
     dimensions = [0, 0, 0]
     dimensions[0] = math.ceil(image_shape[0] / core_size) * core_size
@@ -99,9 +100,9 @@ def map_resample(input_map_1, input_map_2=None):
             float(input_map.voxel_size.z),
         )
         voxel_size = [vol_x, vol_y, vol_z]
-        
+
         return voxel_size
-    
+
     voxel_size = get_voxel_size(input_map_1)
     meta_data = deepcopy(input_map_1.header)
     input_map = deepcopy(input_map_1.data)
@@ -114,7 +115,7 @@ def map_resample(input_map_1, input_map_2=None):
         assert voxel_size_2 == voxel_size, "two half maps must have same voxel size"
         input_map_2 = deepcopy(input_map_2.data)
         input_map = (input_map_2 + input_map) / 2.0
-        
+
     input_map = skimage.transform.resize(
         input_map,
         output_shape,
@@ -130,4 +131,4 @@ def map_resample(input_map_1, input_map_2=None):
     input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
     input_cube_list = np.array(create_cube_list(input_map))
 
-    return torch.tensor(input_cube_list, dtype=torch.float), meta_data
+    return input_map, torch.tensor(input_cube_list, dtype=torch.float), meta_data
