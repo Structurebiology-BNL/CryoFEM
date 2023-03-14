@@ -91,20 +91,30 @@ def reconstruct_maps(cube_list, image_shape, box_size=64, core_size=50):
     return reconstruct_image
 
 
-def map_resample(input_map):
-    vol_x, vol_y, vol_z = (
-        float(input_map.voxel_size.x),
-        float(input_map.voxel_size.y),
-        float(input_map.voxel_size.z),
-    )
-    voxel_size = [vol_x, vol_y, vol_z]
-    meta_data = deepcopy(input_map.header)
-    input_map = deepcopy(input_map.data)
+def map_resample(input_map_1, input_map_2=None):
+    def get_voxel_size(input_map):
+        vol_x, vol_y, vol_z = (
+            float(input_map.voxel_size.x),
+            float(input_map.voxel_size.y),
+            float(input_map.voxel_size.z),
+        )
+        voxel_size = [vol_x, vol_y, vol_z]
+        
+        return voxel_size
+    
+    voxel_size = get_voxel_size(input_map_1)
+    meta_data = deepcopy(input_map_1.header)
+    input_map = deepcopy(input_map_1.data)
     scale_factor = [vol / 1.0 for vol in voxel_size]
     output_shape = [
         round(dim * scale) for dim, scale in zip(input_map.shape, scale_factor)
     ]
-
+    if input_map_2 is not None:
+        voxel_size_2 = get_voxel_size(input_map_2)
+        assert voxel_size_2 == voxel_size, "two half maps must have same voxel size"
+        input_map_2 = deepcopy(input_map_2.data)
+        input_map = (input_map_2 + input_map) / 2.0
+        
     input_map = skimage.transform.resize(
         input_map,
         output_shape,
