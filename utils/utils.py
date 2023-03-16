@@ -137,3 +137,32 @@ def download_half_maps(emdb_id):
         print("no half maps available for the EMBD-{}".format(emdb_id))
 
     return download_successful
+
+class EarlyStopper:
+    def __init__(self, patience=6, min_delta=1e-7, mode="max"):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_metric = 0.0
+        self.mode = mode
+
+    def early_stop(self, validation_metric):
+        if self.mode == "max":
+            if validation_metric > self.best_metric:
+                self.best_metric = validation_metric
+                self.counter = 0
+            elif validation_metric < (self.best_metric - self.min_delta):
+                self.counter += 1
+                if self.counter >= self.patience:
+                    return True
+        
+        elif self.mode == "min":
+            if validation_metric < self.best_metric:
+                self.best_metric = validation_metric
+                self.counter = 0
+            elif validation_metric > (self.best_metric + self.min_delta):
+                self.counter += 1
+                if self.counter >= self.patience:
+                    return True
+        
+        return False

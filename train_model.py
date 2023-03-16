@@ -5,6 +5,7 @@ import datetime
 import logging
 from pathlib import Path
 from torch.nn.utils import clip_grad_norm_
+from torch.utils.tensorboard import SummaryWriter
 from timeit import default_timer as timer
 from skimage.metrics import structural_similarity
 from tqdm import tqdm
@@ -12,6 +13,7 @@ from models.map_splitter import reconstruct_maps
 from models.unet import UNetRes, UNet
 from utils.utils import (
     load_data,
+    EarlyStopper,
     pearson_cc,
     logging_related,
     peak_signal_to_noise_ratio,
@@ -60,10 +62,10 @@ def train(conf):
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
 
-    train_loss, val_loss = [], []
-    train_struc_sim, val_struc_sim = [], []
-    train_psnr, val_psnr = [], []
-    train_pcc, val_pcc = [], []
+    # train_loss, val_loss = [], []
+    # train_struc_sim, val_struc_sim = [], []
+    # train_psnr, val_psnr = [], []
+    # train_pcc, val_pcc = [], []
     log_every = 1
     logging.info(
         "Total train samples {}, val samples {}".format(
@@ -80,10 +82,11 @@ def train(conf):
     EPOCHS = conf["training"]["epochs"]
     batch_size = conf["training"]["batch_size"]
     torch.backends.cudnn.benchmark = True
-
+    early_stopper = EarlyStopper(patience=6, mode="min")
+    scaler = torch.cuda.amp.GradScaler()
     for epoch in range(EPOCHS):
         model.train()
-        train_loss_tmp, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
+        train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
         for i, (x_train, y_train, original_shape, id) in enumerate(
             tqdm(train_dataloader)
         ):
@@ -98,12 +101,16 @@ def train(conf):
                     y_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
                 )
                 optimizer.zero_grad(set_to_none=True)
-                y_pred_partial = model(x_train_partial)
+                with torch.cuda.amp.autocast(dtype=torch.float16):
+                    y_pred_partial = model(x_train_partial)
+                    loss_ = criterion(y_pred_partial, y_train_partial)
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
                 )
-                loss_ = criterion(y_pred_partial, y_train_partial)
-                loss_.backward()
+                scaler.scale(loss_).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                # loss_.backward()
                 clip_grad_norm_(model.parameters(), 2)
                 optimizer.step()
 
@@ -148,17 +155,27 @@ def train(conf):
 
         scheduler.step()
         lr = scheduler.get_last_lr()
-        train_loss.append(train_loss_tmp / len(train_dataloader))
-        train_struc_sim.append(struc_sim / len(train_dataloader))
-        train_pcc.append(pcc / len(train_dataloader))
-        train_psnr.append(psnr / len(train_dataloader))
-
+        train_loss = train_loss / len(train_dataloader)
+        train_struc_sim = struc_sim / len(train_dataloader)
+        train_pcc = pcc / len(train_dataloader)
+        train_psnr = psnr / len(train_dataloader)
+        writer.add_scalars(
+            "train",
+            {
+                "loss": train_loss,
+                "struc_sim": train_struc_sim,
+                "pcc": train_pcc,
+                "psnr": train_psnr,
+                "lr": lr,
+            },
+            epoch + 1,
+        )
         """
         Validation
         """
         model.eval()
         with torch.no_grad():
-            val_loss_tmp, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
+            val_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
             for i, (x_val, y_val, original_shape, id) in enumerate(val_dataloader):
                 x_val = x_val.squeeze()
                 y_val = y_val.squeeze()
@@ -188,7 +205,7 @@ def train(conf):
                 struc_sim += structural_similarity(y_val_pred_recon, y_val_recon)
                 pcc += pearson_cc(y_val_pred_recon, y_val_recon)
                 psnr += peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
-                val_loss_tmp += (
+                val_loss += (
                     criterion(
                         torch.from_numpy(y_val_pred_recon).to(device),
                         torch.from_numpy(y_val_recon).to(device),
@@ -202,22 +219,30 @@ def train(conf):
                         "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                         "psnr: {:.2f}, pcc: {:.4f}".format(
                             epoch + 1,
-                            val_loss_tmp / (i + 1),
+                            val_loss / (i + 1),
                             id[0],
                             struc_sim / (i + 1),
                             psnr / (i + 1),
                             pcc / (i + 1),
                         )
                     )
-            val_loss_tmp = val_loss_tmp / len(val_dataloader)
-            struc_sim = struc_sim / len(val_dataloader)
-            psnr = psnr / len(val_dataloader)
-            pcc = pcc / len(val_dataloader)
-            val_loss.append(val_loss_tmp)
-            val_struc_sim.append(struc_sim)
-            val_psnr.append(psnr)
-            val_pcc.append(pcc)
-
+            val_loss = val_loss / len(val_dataloader)
+            val_struc_sim = struc_sim / len(val_dataloader)
+            val_psnr = psnr / len(val_dataloader)
+            val_pcc = pcc / len(val_dataloader)
+            writer.add_scalars(
+                "val",
+                {
+                    "loss": val_loss,
+                    "struc_sim": val_struc_sim,
+                    "pcc": val_pcc,
+                    "psnr": val_psnr,
+                    "lr": lr,
+                },
+                epoch + 1,
+            )
+            if early_stopper.early_stop(val_loss, mode="min"):
+                break
             if (
                 struc_sim > 0.975
                 and psnr > 39
@@ -228,22 +253,14 @@ def train(conf):
                     "model_state": model.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "scheduler": scheduler.state_dict(),
-                    "train_loss": train_loss,
-                    "train_struc_sim": train_struc_sim,
-                    "train_psnr": train_psnr,
-                    "train_pcc": train_pcc,
-                    "val_loss": val_loss,
-                    "val_struc_sim": val_struc_sim,
-                    "val_psnr": val_psnr,
-                    "val_pcc": val_pcc,
                 }
                 file_name = (
                     conf["output_path"]
                     + "/"
                     + "Epoch_{}".format(epoch + 1)
-                    + "_ssim_{:.3f}".format(val_struc_sim[-1])
-                    + "_psnr_{:.2f}".format(val_psnr[-1])
-                    + "_pcc_{:.3f}".format(val_pcc[-1])
+                    + "_ssim_{:.3f}".format(val_struc_sim)
+                    + "_psnr_{:.2f}".format(val_psnr)
+                    + "_pcc_{:.3f}".format(val_pcc)
                 )
                 torch.save(state, file_name + ".pt")
                 logging.info("\n------------ Save the best model ------------")
@@ -254,15 +271,15 @@ def train(conf):
             "train psnr: {:.2f}, val psnr {:.2f}\n"
             "train pcc: {:.4f}, val pcc: {:.4f}\n".format(
                 epoch + 1,
-                train_loss[-1],
-                val_loss[-1],
-                train_struc_sim[-1],
-                val_struc_sim[-1],
+                train_loss,
+                val_loss,
+                train_struc_sim,
+                val_struc_sim,
                 lr,
-                train_psnr[-1],
-                val_psnr[-1],
-                train_pcc[-1],
-                val_pcc[-1],
+                train_psnr,
+                val_psnr,
+                train_pcc,
+                val_pcc,
             )
         )
 
@@ -298,6 +315,8 @@ if __name__ == "__main__":
     logging related part
     """
     logging_related(output_path=output_path, debug=conf["general"]["debug"])
+    writer = SummaryWriter(log_dir=output_path)
     train(conf)
+    writer.flush()
     end = timer()
     logging.info("Total time used: {:.1f}".format(end - start))
