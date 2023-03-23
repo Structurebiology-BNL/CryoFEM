@@ -5,15 +5,15 @@
         "debug": 0
     },
     "data": {
-        "data_path": "/hpcgpfs01/scratch/xdai/emdb_data",
-        "emd_id_path": "data_processing/train_emd_id.txt",
+        "data_path": "/host/emdb_data",
+        "emd_id_path": "data_processing/sample_id.txt",
         "augmentation": 1,
         "box_size": 64,
         "core_size": 50
     },
     "training": {
         "epochs": 80,
-        "batch_size": 16,
+        "batch_size": 8,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
         "cc_weight": 0.5,

@@ -2,40 +2,43 @@ import numpy as np
 import logging
 import sys
 import torch
+import json
+from pathlib import Path
+import datetime
+from ml_collections import config_dict
 from torchvision.datasets.utils import download_url
-import gemmi
 from models.data_load import CryoEM_Map_Dataset, CryoEM_Map_TestDataset
 
 
 def load_data(conf, training=True):
     if training:
-        id_path = conf["data"]["emd_id_path"]
+        id_path = conf.data.emd_id_path
     else:
-        id_path = conf["test_data"]["emd_id_path"]
+        id_path = conf.test_data.emd_id_path
     with open(id_path) as file:
         lines = file.readlines()
         id_list = [line.rstrip() for line in lines]
 
     if training:
-        RANDOM_SEED = int(conf["general"]["seed"])
+        RANDOM_SEED = int(conf.general.seed)
         np.random.seed(RANDOM_SEED)
-        val_size = int(conf["training"]["val_ratio"] * len(id_list))
+        val_size = int(conf.training.val_ratio * len(id_list))
         rng = np.random.default_rng(RANDOM_SEED)
         val_id = list(rng.choice(id_list, size=val_size, replace=False))
         train_id = list(set(id_list).difference(val_id))
         train_data = CryoEM_Map_Dataset(
-            conf["data"]["data_path"],
+            conf.data.data_path,
             train_id,
-            box_size=conf["data"]["box_size"],
-            core_size=conf["data"]["core_size"],
-            augmentation=conf["data"]["augmentation"],
+            box_size=conf.data.box_size,
+            core_size=conf.data.core_size,
+            augmentation=conf.data.augmentation,
             training=True,
         )
         val_data = CryoEM_Map_Dataset(
-            conf["data"]["data_path"],
+            conf.data.data_path,
             val_id,
-            box_size=conf["data"]["box_size"],
-            core_size=conf["data"]["core_size"],
+            box_size=conf.data.box_size,
+            core_size=conf.data.core_size,
             augmentation=False,
             training=False,
         )
@@ -50,10 +53,10 @@ def load_data(conf, training=True):
 
     else:
         test_data = CryoEM_Map_TestDataset(
-            conf["test_data"]["data_path"],
+            conf.test_data.data_path,
             id_list,
-            box_size=conf["data"]["box_size"],
-            core_size=conf["data"]["core_size"],
+            box_size=conf.data.box_size,
+            core_size=conf.data.core_size,
         )
 
         test_dataloader = torch.utils.data.DataLoader(
@@ -62,6 +65,40 @@ def load_data(conf, training=True):
 
         return test_dataloader
 
+
+def process_config(conf, config_name="train"):
+    if conf["model"]["load_checkpoint"]:
+        """
+        load the model config from checkpoint dir
+        """
+        model_config_path = (
+            "/".join(conf["model"]["load_checkpoint"].split("/")[:-1])
+            + "/config.json"
+        )
+        with open(model_config_path, "r") as f:
+            conf_model = json.load(f)
+        conf["model"] = conf_model["model"]
+    output_path = None
+    if not conf["general"]["debug"]:
+        output_path = (
+            Path("./results/")
+            / config_name
+            / Path(
+                conf["model"]["model_type"]
+                + "_"
+                + str(conf["model"]["n_blocks"])
+            )
+            / Path(
+                str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
+            )
+        )
+        output_path.mkdir(parents=True, exist_ok=True)
+        conf["output_path"] = "./" + str(output_path)
+        with open(str(output_path) + "/config.json", "w") as f:
+            json.dump(conf, f, indent=4)
+
+    conf = config_dict.ConfigDict(conf)
+    return conf, output_path
 
 def logging_related(output_path=None, debug=True, training=True):
     logger = logging.getLogger()
@@ -102,6 +139,7 @@ def pearson_cc(x, y):
 
 
 def download_half_maps(emdb_id):
+    import gemmi
     half_map_1 = "https://files.wwpdb.org/pub/emdb/structures/EMD-{}/other/emd_{}_half_map_1.map.gz".format(
         emdb_id, emdb_id
     )

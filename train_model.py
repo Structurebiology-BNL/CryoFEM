@@ -1,7 +1,6 @@
 import torch
 import argparse
 import json
-import datetime
 import logging
 from pathlib import Path
 from torch.nn.utils import clip_grad_norm_
@@ -17,70 +16,64 @@ from utils.utils import (
     pearson_cc,
     logging_related,
     peak_signal_to_noise_ratio,
+    process_config,
 )
 from models.loss_func import Composite_Loss
 
 
 def train(conf):
-    RANDOM_SEED = int(conf["general"]["seed"])
+    RANDOM_SEED = int(conf.general.seed)
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
     device = (
-        torch.device("cuda:{}".format(conf["general"]["gpu_id"]))
+        torch.device("cuda:{}".format(conf.general.gpu_id))
         if torch.cuda.is_available()
         else "cpu"
     )
     train_dataloader, val_dataloader = load_data(conf, training=True)
-    if conf["model"]["model_type"] == "unetres":
-        model = UNetRes(
-            n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
-        ).to(device)
+    if conf.model.model_type == "unetres":
+        model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+            device
+        )
 
-    elif conf["model"]["model_type"] == "unet":
-        model = UNet(
-            n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
-        ).to(device)
+    elif conf.model.model_type == "unet":
+        model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+            device
+        )
 
-    lr = conf["training"]["lr"]
+    lr = conf.training.lr
     optimizer = torch.optim.Adam(
-        model.parameters(), lr=lr, weight_decay=conf["training"]["weight_decay"]
+        model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
     )
-    step_size = conf["training"]["scheduler_step_size"]
-    lr_decay = conf["training"]["lr_decay"]
+    step_size = conf.training.scheduler_step_size
+    lr_decay = conf.training.lr_decay
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=step_size, gamma=lr_decay
     )
 
-    if conf["model"]["load_checkpoint"]:
+    if conf.model.load_checkpoint:
         logging.info(
-            "Resume training and load model from {}".format(
-                conf["model"]["load_checkpoint"]
-            )
+            "Resume training and load model from {}".format(conf.model.load_checkpoint)
         )
-        checkpoint = torch.load(conf["model"]["load_checkpoint"])
-        model.load_state_dict(checkpoint["model_state"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        scheduler.load_state_dict(checkpoint["scheduler"])
+        checkpoint = torch.load(conf.model.load_checkpoint)
+        model.load_state_dict(checkpoint.model_state)
+        optimizer.load_state_dict(checkpoint.optimizer)
+        scheduler.load_state_dict(checkpoint.scheduler)
 
-    # train_loss, val_loss = [], []
-    # train_struc_sim, val_struc_sim = [], []
-    # train_psnr, val_psnr = [], []
-    # train_pcc, val_pcc = [], []
-    log_every = 1
     logging.info(
         "Total train samples {}, val samples {}".format(
             len(train_dataloader), len(val_dataloader)
         )
     )
     criterion = Composite_Loss(
-        loss_1_type=conf["training"]["loss_1_type"],
-        beta=conf["training"]["smooth_l1_beta"],
-        cc_type=conf["training"]["cc_type"],
-        cc_weight=conf["training"]["cc_weight"],
+        loss_1_type=conf.training.loss_1_type,
+        beta=conf.training.smooth_l1_beta,
+        cc_type=conf.training.cc_type,
+        cc_weight=conf.training.cc_weight,
         device=device,
     )
-    EPOCHS = conf["training"]["epochs"]
-    batch_size = conf["training"]["batch_size"]
+    EPOCHS = conf.training.epochs
+    batch_size = conf.training.batch_size
     torch.backends.cudnn.benchmark = True
     early_stopper = EarlyStopper(patience=6, mode="min")
     scaler = torch.cuda.amp.GradScaler()
@@ -117,14 +110,14 @@ def train(conf):
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),
                 original_shape,
-                box_size=conf["data"]["box_size"],
-                core_size=conf["data"]["core_size"],
+                box_size=conf.data.box_size,
+                core_size=conf.data.core_size,
             )
             y_train_recon = reconstruct_maps(
                 y_train.detach().cpu().numpy(),
                 original_shape,
-                box_size=conf["data"]["box_size"],
-                core_size=conf["data"]["core_size"],
+                box_size=conf.data.box_size,
+                core_size=conf.data.core_size,
             )
 
             struc_sim += structural_similarity(y_pred_recon, y_train_recon)
@@ -140,18 +133,17 @@ def train(conf):
                 .numpy()
             )
 
-            if i % log_every == 0:
-                logging.info(
-                    "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                    "psnr: {:.2f}, pcc: {:.4f}".format(
-                        epoch + 1,
-                        train_loss / (i + 1),
-                        id[0],
-                        struc_sim / (i + 1),
-                        psnr / (i + 1),
-                        pcc / (i + 1),
-                    )
+            logging.info(
+                "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
+                "psnr: {:.2f}, pcc: {:.4f}".format(
+                    epoch + 1,
+                    train_loss / (i + 1),
+                    id[0],
+                    struc_sim / (i + 1),
+                    psnr / (i + 1),
+                    pcc / (i + 1),
                 )
+            )
 
         scheduler.step()
         lr = scheduler.get_last_lr()
@@ -193,14 +185,14 @@ def train(conf):
                 y_val_pred_recon = reconstruct_maps(
                     y_val_pred.numpy(),
                     original_shape,
-                    box_size=conf["data"]["box_size"],
-                    core_size=conf["data"]["core_size"],
+                    box_size=conf.data.box_size,
+                    core_size=conf.data.core_size,
                 )
                 y_val_recon = reconstruct_maps(
                     y_val.numpy(),
                     original_shape,
-                    box_size=conf["data"]["box_size"],
-                    core_size=conf["data"]["core_size"],
+                    box_size=conf.data.box_size,
+                    core_size=conf.data.core_size,
                 )
                 struc_sim += structural_similarity(y_val_pred_recon, y_val_recon)
                 pcc += pearson_cc(y_val_pred_recon, y_val_recon)
@@ -214,18 +206,17 @@ def train(conf):
                     .cpu()
                     .numpy()
                 )
-                if i % log_every == 0:
-                    logging.info(
-                        "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                        "psnr: {:.2f}, pcc: {:.4f}".format(
-                            epoch + 1,
-                            val_loss / (i + 1),
-                            id[0],
-                            struc_sim / (i + 1),
-                            psnr / (i + 1),
-                            pcc / (i + 1),
-                        )
+                logging.info(
+                    "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
+                    "psnr: {:.2f}, pcc: {:.4f}".format(
+                        epoch + 1,
+                        val_loss / (i + 1),
+                        id[0],
+                        struc_sim / (i + 1),
+                        psnr / (i + 1),
+                        pcc / (i + 1),
                     )
+                )
             val_loss = val_loss / len(val_dataloader)
             val_struc_sim = struc_sim / len(val_dataloader)
             val_psnr = psnr / len(val_dataloader)
@@ -247,7 +238,7 @@ def train(conf):
                 struc_sim > 0.975
                 and psnr > 39
                 and pcc > 0.45
-                and not conf["general"]["debug"]
+                and not conf.general.debug
             ):
                 state = {
                     "model_state": model.state_dict(),
@@ -255,7 +246,7 @@ def train(conf):
                     "scheduler": scheduler.state_dict(),
                 }
                 file_name = (
-                    conf["output_path"]
+                    conf.output_path
                     + "/"
                     + "Epoch_{}".format(epoch + 1)
                     + "_ssim_{:.3f}".format(val_struc_sim)
@@ -263,8 +254,6 @@ def train(conf):
                     + "_pcc_{:.3f}".format(val_pcc)
                 )
                 torch.save(state, file_name + ".pt")
-                logging.info("\n------------ Save the best model ------------")
-
         logging.info(
             "Epoch {} train loss: {:.4f}, val loss: {:.4f},\n"
             "train ssim: {:.4f}, val ssim: {:.4f}, lr = {}\n"
@@ -288,33 +277,16 @@ if __name__ == "__main__":
     start = timer()
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config", type=str, default=None, help="Path of training configuration file"
+        "--config", type=str, default=None, help="Name of configuration file"
     )
     args = parser.parse_args()
-    """
-    Read configuration and dump the configuration to output dir
-    """
     with open(args.config, "r") as f:
         conf = json.load(f)
-
-    output_path = None
-    if not conf["general"]["debug"]:
-        output_path = (
-            Path("/hpcgpfs01/scratch/xdai/resem_training/")
-            / Path(args.config).stem
-            / Path(
-                str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
-            )
-        )
-        output_path.mkdir(parents=True, exist_ok=True)
-        conf["output_path"] = "./" + str(output_path)
-        with open(str(output_path) + "/config.json", "w") as f:
-            json.dump(conf, f, indent=4)
-
+    conf, output_path = process_config(conf, config_name=Path(args.config).stem)
     """
     logging related part
     """
-    logging_related(output_path=output_path, debug=conf["general"]["debug"])
+    logging_related(output_path=output_path, debug=conf.general.debug)
     writer = SummaryWriter(log_dir=output_path)
     train(conf)
     writer.flush()
