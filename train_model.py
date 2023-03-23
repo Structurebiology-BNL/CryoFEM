@@ -101,12 +101,12 @@ def train(conf):
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
                 )
                 scaler.scale(loss_).backward()
+                # Unscales the gradients of optimizer's assigned params in-place
+                scaler.unscale_(optimizer)
+                clip_grad_norm_(model.parameters(), 2)
                 scaler.step(optimizer)
                 scaler.update()
-                # loss_.backward()
-                clip_grad_norm_(model.parameters(), 2)
-                optimizer.step()
-
+                
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),
                 original_shape,
