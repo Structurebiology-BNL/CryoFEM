@@ -143,15 +143,19 @@ class EarlyStopper:
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
-        self.best_metric = 0.0
         self.mode = mode
+        if self.mode == "max":
+            self.best_metric = -np.inf
+        elif self.mode == "min":
+            self.best_metric = 1e5
+        
 
     def early_stop(self, validation_metric):
         if self.mode == "max":
             if validation_metric > self.best_metric:
                 self.best_metric = validation_metric
                 self.counter = 0
-            elif validation_metric < (self.best_metric - self.min_delta):
+            elif validation_metric <= (self.best_metric - self.min_delta):
                 self.counter += 1
                 if self.counter >= self.patience:
                     return True
@@ -160,7 +164,7 @@ class EarlyStopper:
             if validation_metric < self.best_metric:
                 self.best_metric = validation_metric
                 self.counter = 0
-            elif validation_metric > (self.best_metric + self.min_delta):
+            elif validation_metric >= (self.best_metric + self.min_delta):
                 self.counter += 1
                 if self.counter >= self.patience:
                     return True

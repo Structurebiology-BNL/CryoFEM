@@ -130,7 +130,7 @@ def train(conf):
             struc_sim += structural_similarity(y_pred_recon, y_train_recon)
             pcc += pearson_cc(y_pred_recon, y_train_recon)
             psnr += peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
-            train_loss_tmp += (
+            train_loss += (
                 criterion(
                     torch.from_numpy(y_pred_recon).to(device),
                     torch.from_numpy(y_train_recon).to(device),
@@ -145,7 +145,7 @@ def train(conf):
                     "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                     "psnr: {:.2f}, pcc: {:.4f}".format(
                         epoch + 1,
-                        train_loss_tmp / (i + 1),
+                        train_loss / (i + 1),
                         id[0],
                         struc_sim / (i + 1),
                         psnr / (i + 1),
@@ -241,7 +241,7 @@ def train(conf):
                 },
                 epoch + 1,
             )
-            if early_stopper.early_stop(val_loss, mode="min"):
+            if early_stopper.early_stop(val_loss):
                 break
             if (
                 struc_sim > 0.975
@@ -300,7 +300,7 @@ if __name__ == "__main__":
     output_path = None
     if not conf["general"]["debug"]:
         output_path = (
-            Path("./results/")
+            Path("/hpcgpfs01/scratch/xdai/resem_training/")
             / Path(args.config).stem
             / Path(
                 str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
