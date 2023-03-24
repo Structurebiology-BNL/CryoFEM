@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-import torch 
+import torch
 import argparse
 import json
 import logging
@@ -21,7 +21,7 @@ def train(conf):
     trainer = pl.Trainer(
         gpus=[conf.general.gpu_id] if torch.cuda.is_available() else None,
         max_epochs=conf.training.epochs,
-        precision=16,
+        precision="16-mixed",
         gradient_clip_val=2,
         auto_lr_find=True,
         auto_scale_batch_size="power",
@@ -39,7 +39,8 @@ def train(conf):
     )
 
     trainer.fit(model, train_dataloader, val_dataloader)
-    
+
+
 if __name__ == "__main__":
     start = timer()
     parser = argparse.ArgumentParser()
