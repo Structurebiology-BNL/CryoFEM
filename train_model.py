@@ -87,12 +87,16 @@ def train(conf):
             y_train = y_train.squeeze()
             y_pred = torch.tensor(())
             for indx in range(0, x_train.shape[0], batch_size):
-                x_train_partial = (
-                    x_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
-                )
-                y_train_partial = (
-                    y_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
-                )
+                if indx + batch_size > x_train.shape[0]:
+                    x_train_partial = x_train[indx:].unsqueeze(dim=1).to(device)
+                    y_train_partial = y_train[indx:].unsqueeze(dim=1).to(device)
+                else:
+                    x_train_partial = (
+                        x_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
+                    )
+                    y_train_partial = (
+                        y_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
+                    )
                 optimizer.zero_grad(set_to_none=True)
                 with torch.cuda.amp.autocast(dtype=torch.float16):
                     y_pred_partial = model(x_train_partial)
@@ -101,11 +105,11 @@ def train(conf):
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
                 )
                 scaler.scale(loss_).backward()
+                # Unscales the gradients of optimizer's assigned params in-place
+                scaler.unscale_(optimizer)
+                clip_grad_norm_(model.parameters(), 2)
                 scaler.step(optimizer)
                 scaler.update()
-                # loss_.backward()
-                clip_grad_norm_(model.parameters(), 2)
-                optimizer.step()
 
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),
@@ -173,9 +177,12 @@ def train(conf):
                 y_val = y_val.squeeze()
                 y_val_pred = torch.tensor(())
                 for indx in range(0, x_val.shape[0], batch_size):
-                    x_val_partial = (
-                        x_val[indx : indx + batch_size].unsqueeze(dim=1).to(device)
-                    )
+                    if indx + batch_size > x_val.shape[0]:
+                        x_val_partial = x_val[indx:].unsqueeze(dim=1).to(device)
+                    else:
+                        x_val_partial = (
+                            x_val[indx : indx + batch_size].unsqueeze(dim=1).to(device)
+                        )
                     y_pred_partial = model(x_val_partial)
                     y_val_pred = torch.cat(
                         (y_val_pred, y_pred_partial.squeeze(dim=1).detach().cpu()),
@@ -234,12 +241,7 @@ def train(conf):
             )
             if early_stopper.early_stop(val_loss):
                 break
-            if (
-                struc_sim > 0.975
-                and psnr > 39
-                and pcc > 0.45
-                and not conf.general.debug
-            ):
+            if struc_sim > 0.98 and psnr > 40 and pcc > 0.5 and not conf.general.debug:
                 state = {
                     "model_state": model.state_dict(),
                     "optimizer": optimizer.state_dict(),

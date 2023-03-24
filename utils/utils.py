@@ -81,7 +81,7 @@ def process_config(conf, config_name="train"):
     output_path = None
     if not conf["general"]["debug"]:
         output_path = (
-            Path("./results/")
+            Path("/hpcgpfs01/scratch/xdai/resem_training/")
             / config_name
             / Path(
                 conf["model"]["model_type"]
