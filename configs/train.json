@@ -1,7 +1,8 @@
 {
     "general": {
         "seed": 3333,
-        "gpu_id": 0,
+        "num_gpus": 2, 
+        "gpu_id": 1, 
         "debug": 0
     },
     "data": {
