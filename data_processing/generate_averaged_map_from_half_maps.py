@@ -13,7 +13,7 @@ INPUT_MAP_PATH = "/data/emdb_half_maps/"
 
 with open("sample_emd_ids.json", "r") as f:
     ids = json.load(f)
-    
+
 failed_list = []
 for id in tqdm(ids):
     folder_name = "emd_" + id

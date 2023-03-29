@@ -1,8 +1,8 @@
 """
-the script is for using ChimeraX to resample the average map (from two half-maps)
+the script is using ChimeraX to resample the average map (from two half-maps)
 and generate target maps used for training and evaluating the ResEM model.
-it requires the input map and its corresponding PDB model.
-Change the CHIMERAX, OUTPUT_RESAMPLED_MAP and INPUT_MAP paths
+It requires the input map and its corresponding PDB model.
+Please change the CHIMERAX, OUTPUT_RESAMPLED_MAP and INPUT_MAP paths accordingly.
 """
 from tqdm import tqdm
 import pathlib
@@ -31,7 +31,7 @@ for id in tqdm(keys):
         continue
     try:
         input = INPUT_MAP_PATH + "{}/averaged_map_{}.ccp4".format(folder_name, id)
-        pdb_model = ids[id] 
+        pdb_model = ids[id]
         pdb_file = INPUT_MAP_PATH + "{}/{}".format(folder_name, pdb_model)
         output_path = "simulated_map_{}_res_2_vol_1.mrc".format(id)
         with open("resample_and_simulation.cxc", "w") as chimerax_script:

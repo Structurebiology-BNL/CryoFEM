@@ -34,7 +34,9 @@ def setup(rank, world_size):
     os.environ["MASTER_PORT"] = "12355"
 
     # Initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group(
+        "nccl", init_method="env://", rank=rank, world_size=world_size
+    )
 
 
 def cleanup():
@@ -294,6 +296,9 @@ def train_ddp(rank, conf):
 
 
 def main(conf):
+    mp.set_start_method("spawn")
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
     world_size = conf.general.num_gpus
     mp.spawn(train_ddp, args=(conf,), nprocs=world_size, join=True)
 

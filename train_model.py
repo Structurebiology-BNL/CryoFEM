@@ -40,7 +40,7 @@ def train(conf):
         model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
         )
-
+    model = torch.compile(model)
     lr = conf.training.lr
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
