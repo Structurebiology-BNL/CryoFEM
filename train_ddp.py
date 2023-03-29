@@ -46,7 +46,7 @@ def train_ddp(rank, conf):
     """
     logging related part
     """
-    logging_related(rank, output_path=conf.output_path, debug=conf.general.debug)
+    logging_related(rank, output_path=conf.output_path)
     RANDOM_SEED = int(conf.general.seed)
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
@@ -65,7 +65,7 @@ def train_ddp(rank, conf):
         )
     model.to(device)
     model = DDP(model, device_ids=[device])
-    lr = conf.training.lr
+    lr = conf.general.num_gpus * conf.training.lr
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
     )
@@ -85,8 +85,8 @@ def train_ddp(rank, conf):
         scheduler.load_state_dict(checkpoint.scheduler)
 
     logging.info(
-        "Total train samples {}, val samples {}".format(
-            len(train_dataloader), len(val_dataloader)
+        "Total train samples {}, val samples {} for rank {}".format(
+            len(train_dataloader), len(val_dataloader), rank
         )
     )
     criterion = Composite_Loss(
@@ -100,8 +100,6 @@ def train_ddp(rank, conf):
     batch_size = conf.training.batch_size
     torch.backends.cudnn.benchmark = True
     early_stopper = EarlyStopper(patience=6, mode="min")
-    # Create a GradScaler for mixed precision training
-    scaler = torch.cuda.amp.GradScaler()
     # Training loop
     for epoch in range(EPOCHS):
         model.train()
@@ -124,18 +122,14 @@ def train_ddp(rank, conf):
                         y_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
                     )
                 optimizer.zero_grad(set_to_none=True)
-                with torch.cuda.amp.autocast(dtype=torch.float16):
-                    y_pred_partial = model(x_train_partial)
-                    loss_ = criterion(y_pred_partial, y_train_partial)
+                y_pred_partial = model(x_train_partial)
+                loss_ = criterion(y_pred_partial, y_train_partial)
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
                 )
-                scaler.scale(loss_).backward()
-                # Unscales the gradients of optimizer's assigned params in-place
-                scaler.unscale_(optimizer)
+                loss_.backward()
                 clip_grad_norm_(model.parameters(), 2)
-                scaler.step(optimizer)
-                scaler.update()
+                optimizer.step()
 
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),
@@ -164,8 +158,9 @@ def train_ddp(rank, conf):
             )
 
             logging.info(
-                "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
+                "Rank {}, Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                 "psnr: {:.2f}, pcc: {:.4f}".format(
+                    rank,
                     epoch + 1,
                     train_loss / (i + 1),
                     id[0],

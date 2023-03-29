@@ -158,7 +158,7 @@ def process_config(conf, config_name="train"):
             )
         )
         output_path.mkdir(parents=True, exist_ok=True)
-        conf["output_path"] = "./" + str(output_path)
+        conf["output_path"] = str(output_path)
         with open(str(output_path) + "/config.json", "w") as f:
             json.dump(conf, f, indent=4)
 
@@ -166,21 +166,17 @@ def process_config(conf, config_name="train"):
     return conf
 
 
-def logging_related(rank, output_path=None, debug=True, training=True):
+def logging_related(rank, output_path=None, training=True):
     logger = logging.getLogger()
 
-    if rank == 0:
-        logger.setLevel(logging.INFO)
-    else:
-        logger.setLevel(logging.CRITICAL)
-
+    logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
     stdout_handler = logging.StreamHandler(sys.stdout)
     stdout_handler.setLevel(logging.DEBUG)
     stdout_handler.setFormatter(formatter)
     logger.addHandler(stdout_handler)
 
-    if not debug and rank == 0:
+    if rank == 0:
         assert output_path is not None, "need valid log output path"
 
         if training:
