@@ -172,7 +172,7 @@ def logging_related(rank, output_path=None, debug=True, training=True):
     if rank == 0:
         logger.setLevel(logging.INFO)
     else:
-        logger.setLevel(logging.CRITICAL)
+        logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter("%(asctime)s | %(levelname)s | %(message)s")
     stdout_handler = logging.StreamHandler(sys.stdout)

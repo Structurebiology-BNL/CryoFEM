@@ -40,7 +40,7 @@ def train(conf):
         model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
         )
-
+    model = torch.compile(model)
     lr = conf.training.lr
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
@@ -76,7 +76,6 @@ def train(conf):
     batch_size = conf.training.batch_size
     torch.backends.cudnn.benchmark = True
     early_stopper = EarlyStopper(patience=6, mode="min")
-    scaler = torch.cuda.amp.GradScaler()
     for epoch in range(EPOCHS):
         model.train()
         train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
@@ -98,18 +97,14 @@ def train(conf):
                         y_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
                     )
                 optimizer.zero_grad(set_to_none=True)
-                with torch.cuda.amp.autocast(dtype=torch.float16):
-                    y_pred_partial = model(x_train_partial)
-                    loss_ = criterion(y_pred_partial, y_train_partial)
+                y_pred_partial = model(x_train_partial)
+                loss_ = criterion(y_pred_partial, y_train_partial)
+                loss_.backward()
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
                 )
-                scaler.scale(loss_).backward()
-                # Unscales the gradients of optimizer's assigned params in-place
-                scaler.unscale_(optimizer)
                 clip_grad_norm_(model.parameters(), 2)
-                scaler.step(optimizer)
-                scaler.update()
+                optimizer.step()
 
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),

@@ -34,7 +34,9 @@ def setup(rank, world_size):
     os.environ["MASTER_PORT"] = "12355"
 
     # Initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+    dist.init_process_group(
+        "nccl", init_method="env://", rank=rank, world_size=world_size
+    )
 
 
 def cleanup():
@@ -46,7 +48,7 @@ def train_ddp(rank, conf):
     """
     logging related part
     """
-    logging_related(rank, output_path=conf.output_path, debug=conf.general.debug)
+    logging_related(rank, output_path=conf.output_path)
     RANDOM_SEED = int(conf.general.seed)
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
@@ -65,7 +67,7 @@ def train_ddp(rank, conf):
         )
     model.to(device)
     model = DDP(model, device_ids=[device])
-    lr = conf.training.lr
+    lr = conf.general.num_gpus * conf.training.lr
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
     )
@@ -85,8 +87,8 @@ def train_ddp(rank, conf):
         scheduler.load_state_dict(checkpoint.scheduler)
 
     logging.info(
-        "Total train samples {}, val samples {}".format(
-            len(train_dataloader), len(val_dataloader)
+        "Total train samples {}, val samples {} for rank {}".format(
+            len(train_dataloader), len(val_dataloader), rank
         )
     )
     criterion = Composite_Loss(
@@ -164,8 +166,9 @@ def train_ddp(rank, conf):
             )
 
             logging.info(
-                "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
+                "Rank {}, Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                 "psnr: {:.2f}, pcc: {:.4f}".format(
+                    rank,
                     epoch + 1,
                     train_loss / (i + 1),
                     id[0],
@@ -299,6 +302,9 @@ def train_ddp(rank, conf):
 
 
 def main(conf):
+    mp.set_start_method("spawn")
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
     world_size = conf.general.num_gpus
     mp.spawn(train_ddp, args=(conf,), nprocs=world_size, join=True)
 
