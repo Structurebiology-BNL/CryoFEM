@@ -9,6 +9,11 @@ Our image enhancement model can be used synergistically with [AlphaFold](https:/
 In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold), [PHENIX customized version](https://phenix-online.org/version_docs/dev-4380/reference/alphafold_in_colab.html) to implement the proposed workflow. 
 
 ## Requirements
+### Update
+* March 2023: Try our Colab notebook to run ResEM on Google Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/ResEM/blob/main/Colab_ResEM.ipynb). Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/ResEM/blob/main/Colab_ResEM.ipynb) for more details.
+  
+* March 2023: We have tested ResEM with PyTorch 2.0. By default if you run the training script with PyTorch 2.0, it will first compile to model with `torch.compile` to accelerate the training
+
 ResEM is developed with Python 3.9 and PyTorch 1.12. Other important packages include:
 ```
 torchio 0.18.86
