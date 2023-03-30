@@ -56,9 +56,9 @@ def train(conf):
             "Resume training and load model from {}".format(conf.model.load_checkpoint)
         )
         checkpoint = torch.load(conf.model.load_checkpoint)
-        model.load_state_dict(checkpoint.model_state)
-        optimizer.load_state_dict(checkpoint.optimizer)
-        scheduler.load_state_dict(checkpoint.scheduler)
+        model.load_state_dict(checkpoint["model_state"])
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        scheduler.load_state_dict(checkpoint["scheduler"])
 
     logging.info(
         "Total train samples {}, val samples {}".format(
