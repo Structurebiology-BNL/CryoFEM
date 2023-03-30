@@ -60,3 +60,6 @@ If you find our work helpful, please consider cite our work as follows:
 	journal = {bioRxiv}
 }
 ```
+
+### License
+This source code is licensed under the CSI approved 3-clause BSD license found in the LICENSE file in the root directory of this source tree.
