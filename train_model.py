@@ -40,7 +40,7 @@ def train(conf):
         model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
         )
-    model = torch.compile(model)
+
     lr = conf.training.lr
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
@@ -60,6 +60,9 @@ def train(conf):
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
 
+    # if using PyTorch 2.0, use torch.compile to accelerate the training
+    if float(torch.__version__[:3]) >= 2.0:
+        model = torch.compile(model)
     logging.info(
         "Total train samples {}, val samples {}".format(
             len(train_dataloader), len(val_dataloader)
