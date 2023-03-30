@@ -1,4 +1,9 @@
 import torch
+import os
+import torch.distributed as dist
+import torch.multiprocessing as mp
+from torch.nn.parallel import DistributedDataParallel as DDP
+import torch
 import argparse
 import json
 import logging
@@ -11,7 +16,7 @@ from tqdm import tqdm
 from models.map_splitter import reconstruct_maps
 from models.unet import UNetRes, UNet
 from utils.utils import (
-    load_data,
+    load_data_ddp,
     EarlyStopper,
     pearson_cc,
     logging_related,
@@ -21,16 +26,36 @@ from utils.utils import (
 from models.loss_func import Composite_Loss
 
 
-def train(conf):
+# Other imports and definitions for your dataset, model, criterion, and metrics
+
+
+def setup(rank, world_size):
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+
+    # Initialize the process group
+    dist.init_process_group(
+        "nccl", init_method="env://", rank=rank, world_size=world_size
+    )
+
+
+def cleanup():
+    dist.destroy_process_group()
+
+
+def train_ddp(rank, conf):
+    setup(rank, conf.general.num_gpus)
+    """
+    logging related part
+    """
+    logging_related(rank, output_path=conf.output_path)
     RANDOM_SEED = int(conf.general.seed)
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
-    device = (
-        torch.device("cuda:{}".format(conf.general.gpu_id))
-        if torch.cuda.is_available()
-        else "cpu"
+    device = torch.device("cuda:{}".format(rank))
+    train_dataloader, val_dataloader = load_data_ddp(
+        conf, rank, world_size=conf.general.num_gpus, training=True
     )
-    train_dataloader, val_dataloader = load_data(conf, training=True)
     if conf.model.model_type == "unetres":
         model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
@@ -40,8 +65,9 @@ def train(conf):
         model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
         )
-    model = torch.compile(model)
-    lr = conf.training.lr
+    model.to(device)
+    model = DDP(model, device_ids=[device])
+    lr = conf.general.num_gpus * conf.training.lr
     optimizer = torch.optim.Adam(
         model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
     )
@@ -50,19 +76,19 @@ def train(conf):
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=step_size, gamma=lr_decay
     )
-
+    writer = SummaryWriter(log_dir=conf.output_path) if rank == 0 else None
     if conf.model.load_checkpoint:
         logging.info(
             "Resume training and load model from {}".format(conf.model.load_checkpoint)
         )
         checkpoint = torch.load(conf.model.load_checkpoint)
-        model.load_state_dict(checkpoint["model_state"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        scheduler.load_state_dict(checkpoint["scheduler"])
+        model.load_state_dict(checkpoint.model_state)
+        optimizer.load_state_dict(checkpoint.optimizer)
+        scheduler.load_state_dict(checkpoint.scheduler)
 
     logging.info(
-        "Total train samples {}, val samples {}".format(
-            len(train_dataloader), len(val_dataloader)
+        "Total train samples {}, val samples {} for rank {}".format(
+            len(train_dataloader), len(val_dataloader), rank
         )
     )
     criterion = Composite_Loss(
@@ -76,6 +102,9 @@ def train(conf):
     batch_size = conf.training.batch_size
     torch.backends.cudnn.benchmark = True
     early_stopper = EarlyStopper(patience=6, mode="min")
+    # Create a GradScaler for mixed precision training
+    scaler = torch.cuda.amp.GradScaler()
+    # Training loop
     for epoch in range(EPOCHS):
         model.train()
         train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
@@ -97,14 +126,18 @@ def train(conf):
                         y_train[indx : indx + batch_size].unsqueeze(dim=1).to(device)
                     )
                 optimizer.zero_grad(set_to_none=True)
-                y_pred_partial = model(x_train_partial)
-                loss_ = criterion(y_pred_partial, y_train_partial)
-                loss_.backward()
+                with torch.cuda.amp.autocast(dtype=torch.float16):
+                    y_pred_partial = model(x_train_partial)
+                    loss_ = criterion(y_pred_partial, y_train_partial)
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
                 )
+                scaler.scale(loss_).backward()
+                # Unscales the gradients of optimizer's assigned params in-place
+                scaler.unscale_(optimizer)
                 clip_grad_norm_(model.parameters(), 2)
-                optimizer.step()
+                scaler.step(optimizer)
+                scaler.update()
 
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),
@@ -133,8 +166,9 @@ def train(conf):
             )
 
             logging.info(
-                "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
+                "Rank {}, Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                 "psnr: {:.2f}, pcc: {:.4f}".format(
+                    rank,
                     epoch + 1,
                     train_loss / (i + 1),
                     id[0],
@@ -150,17 +184,18 @@ def train(conf):
         train_struc_sim = struc_sim / len(train_dataloader)
         train_pcc = pcc / len(train_dataloader)
         train_psnr = psnr / len(train_dataloader)
-        writer.add_scalars(
-            "train",
-            {
-                "loss": train_loss,
-                "struc_sim": train_struc_sim,
-                "pcc": train_pcc,
-                "psnr": train_psnr,
-                "lr": lr,
-            },
-            epoch + 1,
-        )
+        if writer is not None:
+            writer.add_scalars(
+                "train",
+                {
+                    "loss": train_loss,
+                    "struc_sim": train_struc_sim,
+                    "pcc": train_pcc,
+                    "psnr": train_psnr,
+                    "lr": lr,
+                },
+                epoch + 1,
+            )
         """
         Validation
         """
@@ -223,33 +258,28 @@ def train(conf):
             val_struc_sim = struc_sim / len(val_dataloader)
             val_psnr = psnr / len(val_dataloader)
             val_pcc = pcc / len(val_dataloader)
-            writer.add_scalars(
-                "val",
-                {
-                    "loss": val_loss,
-                    "struc_sim": val_struc_sim,
-                    "pcc": val_pcc,
-                    "psnr": val_psnr,
-                },
-                epoch + 1,
-            )
+            if writer is not None:
+                writer.add_scalars(
+                    "val",
+                    {
+                        "loss": val_loss,
+                        "struc_sim": val_struc_sim,
+                        "pcc": val_pcc,
+                        "psnr": val_psnr,
+                    },
+                    epoch + 1,
+                )
             if early_stopper.early_stop(val_loss):
                 break
-            if struc_sim > 0.98 and psnr > 40 and pcc > 0.5 and not conf.general.debug:
+            if val_loss < early_stopper.best_metric and not conf.general.debug:
                 state = {
                     "model_state": model.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "scheduler": scheduler.state_dict(),
                 }
-                file_name = (
-                    conf.output_path
-                    + "/"
-                    + "Epoch_{}".format(epoch + 1)
-                    + "_ssim_{:.3f}".format(val_struc_sim)
-                    + "_psnr_{:.2f}".format(val_psnr)
-                    + "_pcc_{:.3f}".format(val_pcc)
-                )
-                torch.save(state, file_name + ".pt")
+                torch.save(state, "best_model.pt")
+                logging.info("\n----Saved the best model----\n")
+
         logging.info(
             "Epoch {} train loss: {:.4f}, val loss: {:.4f},\n"
             "train ssim: {:.4f}, val ssim: {:.4f}, lr = {}\n"
@@ -268,6 +298,16 @@ def train(conf):
             )
         )
 
+    cleanup()
+
+
+def main(conf):
+    mp.set_start_method("spawn")
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "12355"
+    world_size = conf.general.num_gpus
+    mp.spawn(train_ddp, args=(conf,), nprocs=world_size, join=True)
+
 
 if __name__ == "__main__":
     start = timer()
@@ -279,12 +319,6 @@ if __name__ == "__main__":
     with open(args.config, "r") as f:
         conf = json.load(f)
     conf = process_config(conf, config_name=Path(args.config).stem)
-    """
-    logging related part
-    """
-    logging_related(rank=0, output_path=conf.output_path, debug=conf.general.debug)
-    writer = SummaryWriter(log_dir=conf.output_path)
-    train(conf)
-    writer.flush()
+    main(conf)
     end = timer()
     logging.info("Total time used: {:.1f}".format(end - start))

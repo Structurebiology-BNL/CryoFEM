@@ -1,7 +1,8 @@
 {
     "general": {
-        "seed": 3,
-        "gpu_id": 0,
+        "seed": 3333,
+        "num_gpus": 2, 
+        "gpu_id": 1, 
         "debug": 0
     },
     "data": {
@@ -12,8 +13,8 @@
         "core_size": 50
     },
     "training": {
-        "epochs": 20,
-        "batch_size": 16,
+        "epochs": 80,
+        "batch_size": 8,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
         "cc_weight": 0.5,
@@ -21,13 +22,13 @@
         "lr": 5e-05,
         "val_ratio": 0.25,
         "scheduler_step_size": 10,
-        "lr_decay": 0.5,
+        "lr_decay": 0.7,
         "weight_decay": 1e-05
     },
     "model": {
         "model_type": "unetres",
-        "n_blocks": 1,
-        "act_mode": "L",
+        "n_blocks": 2,
+        "act_mode": "R",
         "load_checkpoint": 0
     }
 }
