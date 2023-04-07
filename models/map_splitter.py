@@ -119,7 +119,7 @@ def map_resample(input_map_1, input_map_2=None):
     input_map = skimage.transform.resize(
         input_map,
         output_shape,
-        order=3,
+        order=1,
         mode="reflect",
         cval=0,
         clip=True,

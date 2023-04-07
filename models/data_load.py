@@ -111,7 +111,10 @@ class CryoEM_Map_TestDataset(torch.utils.data.Dataset):
         folder_name = "emd_" + str(id)
         map_dir = pathlib.Path(self.data_dir + "/{}".format(folder_name))
         os.chdir(map_dir)
-        input_map = mrcfile.open("resampled_map.mrc", mode="r")
+        if os.path.isfile("resampled_map.mrc"):
+            input_map = mrcfile.open("resampled_map.mrc", mode="r")
+        else:
+            input_map = mrcfile.open("resampled_map_{}.mrc".format(id), mode="r")
         input_map = deepcopy(input_map.data)
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         original_shape = input_map.shape

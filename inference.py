@@ -26,7 +26,7 @@ def inference(conf):
     )
     with open(conf["checkpoint"]["model_config"], "r") as f:
         model_conf = json.load(f)
-    conf = {**conf, **model_conf}
+    conf = {**model_conf, **conf}
     conf = config_dict.ConfigDict(conf)
     dataloader = load_data(conf, training=False)
 
