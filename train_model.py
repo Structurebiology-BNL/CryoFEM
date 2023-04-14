@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from skimage.metrics import structural_similarity
 from tqdm import tqdm
 from models.map_splitter import reconstruct_maps
-from models.unet import UNetRes, UNet
+from models.unet import UNetRes
 from utils.utils import (
     load_data,
     EarlyStopper,
@@ -31,16 +31,10 @@ def train(conf):
         else "cpu"
     )
     train_dataloader, val_dataloader = load_data(conf, training=True)
-    if conf.model.model_type == "unetres":
-        model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-            device
-        )
 
-    elif conf.model.model_type == "unet":
-        model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-            device
-        )
-
+    model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+        device
+    )
     lr = conf.training.lr
     if conf.training.optimizer == "adamW":
         optimizer = torch.optim.AdamW(
@@ -50,14 +44,16 @@ def train(conf):
         optimizer = torch.optim.Adam(
             model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
         )
-    step_size = conf.training.scheduler_step_size
-    lr_decay = conf.training.lr_decay
     scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=step_size, gamma=lr_decay
+        optimizer,
+        step_size=conf.training.scheduler_step_size,
+        gamma=conf.training.lr_decay,
     )
     if conf.training.load_checkpoint:
         logging.info(
-            "Resume training and load model from {}".format(conf.training.load_checkpoint)
+            "Resume training and load model from {}".format(
+                conf.training.load_checkpoint
+            )
         )
         checkpoint = torch.load(conf.training.load_checkpoint)
         model.load_state_dict(checkpoint["model_state"])
@@ -254,7 +250,7 @@ def train(conf):
                     file_name = (
                         conf.output_path
                         + "/"
-                        + "s".format(epoch + 1)
+                        + "Epoch_{}".format(epoch + 1)
                         + "_ssim_{:.3f}".format(val_struc_sim)
                         + "_psnr_{:.2f}".format(val_psnr)
                         + "_pcc_{:.3f}".format(val_pcc)

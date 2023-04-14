@@ -1,34 +1,33 @@
 {
     "general": {
         "seed": 3333,
-        "num_gpus": 2, 
         "gpu_id": 1, 
         "debug": 0
     },
     "data": {
-        "data_path": "/host/emdb_data",
-        "emd_id_path": "data_processing/sample_id.txt",
+        "data_path": "/host/full_emdb_data",
+        "train_id_path": "data_processing/train_ids_30_identity.txt",
+        "val_id_path": "data_processing/val_ids_30_identity.txt",
         "augmentation": 1,
         "box_size": 64,
         "core_size": 50
     },
     "training": {
-        "epochs": 80,
-        "batch_size": 8,
+        "optimizer": "adamW",
+        "epochs": 40,
+        "batch_size": 16,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
-        "cc_weight": 0.5,
+        "cc_weight": 1,
         "cc_type": "kernel_pcc",
-        "lr": 5e-05,
-        "val_ratio": 0.25,
-        "scheduler_step_size": 10,
-        "lr_decay": 0.7,
-        "weight_decay": 1e-05
+        "lr": 1e-4,
+        "scheduler_step_size": 6,
+        "lr_decay": 0.5,
+        "weight_decay": 5e-04,
+        "load_checkpoint": 0
     },
     "model": {
-        "model_type": "unetres",
-        "n_blocks": 2,
-        "act_mode": "R",
-        "load_checkpoint": 0
+        "n_blocks": 3,
+        "act_mode": "R"
     }
 }
