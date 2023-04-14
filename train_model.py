@@ -42,20 +42,24 @@ def train(conf):
         )
 
     lr = conf.training.lr
-    optimizer = torch.optim.Adam(
-        model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
-    )
+    if conf.training.optimizer == "adamW":
+        optimizer = torch.optim.AdamW(
+            model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
+        )
+    else:  # default is adam
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
+        )
     step_size = conf.training.scheduler_step_size
     lr_decay = conf.training.lr_decay
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer, step_size=step_size, gamma=lr_decay
     )
-
-    if conf.model.load_checkpoint:
+    if conf.training.load_checkpoint:
         logging.info(
-            "Resume training and load model from {}".format(conf.model.load_checkpoint)
+            "Resume training and load model from {}".format(conf.training.load_checkpoint)
         )
-        checkpoint = torch.load(conf.model.load_checkpoint)
+        checkpoint = torch.load(conf.training.load_checkpoint)
         model.load_state_dict(checkpoint["model_state"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
@@ -169,6 +173,7 @@ def train(conf):
         """
         model.eval()
         with torch.no_grad():
+            best_val_loss = 1000.0
             val_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
             for i, (x_val, y_val, original_shape, id) in enumerate(val_dataloader):
                 x_val = x_val.squeeze()
@@ -238,21 +243,24 @@ def train(conf):
             )
             if early_stopper.early_stop(val_loss):
                 break
-            if struc_sim > 0.98 and psnr > 40 and pcc > 0.5 and not conf.general.debug:
-                state = {
-                    "model_state": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
-                }
-                file_name = (
-                    conf.output_path
-                    + "/"
-                    + "Epoch_{}".format(epoch + 1)
-                    + "_ssim_{:.3f}".format(val_struc_sim)
-                    + "_psnr_{:.2f}".format(val_psnr)
-                    + "_pcc_{:.3f}".format(val_pcc)
-                )
-                torch.save(state, file_name + ".pt")
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                if not conf.general.debug:
+                    state = {
+                        "model_state": model.state_dict(),
+                        "optimizer": optimizer.state_dict(),
+                        "scheduler": scheduler.state_dict(),
+                    }
+                    file_name = (
+                        conf.output_path
+                        + "/"
+                        + "s".format(epoch + 1)
+                        + "_ssim_{:.3f}".format(val_struc_sim)
+                        + "_psnr_{:.2f}".format(val_psnr)
+                        + "_pcc_{:.3f}".format(val_pcc)
+                    )
+                    torch.save(state, file_name + ".pt")
+
         logging.info(
             "Epoch {} train loss: {:.4f}, val loss: {:.4f},\n"
             "train ssim: {:.4f}, val ssim: {:.4f}, lr = {}\n"
