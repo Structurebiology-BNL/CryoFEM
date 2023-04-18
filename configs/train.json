@@ -2,7 +2,7 @@
     "general": {
         "seed": 3333,
         "num_gpus": 2, 
-        "gpu_id": 1, 
+        "gpu_id": 0, 
         "debug": 0
     },
     "data": {
@@ -13,22 +13,23 @@
         "core_size": 50
     },
     "training": {
-        "epochs": 80,
+        "optimizer": "adam",
+        "epochs": 6,
         "batch_size": 16,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
-        "cc_weight": 0.5,
+        "cc_weight": 1,
         "cc_type": "kernel_pcc",
-        "lr": 5e-05,
-        "val_ratio": 0.25,
+        "lr": 1e-4,
+        "val_ratio": 0.2,
         "scheduler_step_size": 10,
         "lr_decay": 0.7,
-        "weight_decay": 1e-05
+        "weight_decay": 5e-04,
+        "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/unetres_2/2023-04-10-10-18/Epoch_6_ssim_0.988_psnr_42.71_pcc_0.562.pt"
     },
     "model": {
         "model_type": "unetres",
         "n_blocks": 2,
-        "act_mode": "R",
-        "load_checkpoint": 0
+        "act_mode": "R"
     }
 }
