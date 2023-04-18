@@ -11,6 +11,7 @@ import mrcfile
 from models.map_splitter import reconstruct_maps
 from models.unet import UNetRes, UNet
 from utils.utils import load_data, logging_related
+from ml_collections import config_dict
 
 
 def inference(conf):
@@ -25,7 +26,8 @@ def inference(conf):
     )
     with open(conf["checkpoint"]["model_config"], "r") as f:
         model_conf = json.load(f)
-    conf = {**conf, **model_conf}
+    conf = {**model_conf, **conf}
+    conf = config_dict.ConfigDict(conf)
     dataloader = load_data(conf, training=False)
 
     if conf["model"]["model_type"] == "unetres":
@@ -37,6 +39,8 @@ def inference(conf):
         model = UNet(
             n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
         ).to(device)
+    else:
+        raise NotImplementedError
 
     logging.info("Load model from {}".format(conf["checkpoint"]["trained_weights"]))
     checkpoint = torch.load(conf["checkpoint"]["trained_weights"])
@@ -113,11 +117,10 @@ if __name__ == "__main__":
         conf["output_path"] = "./" + str(output_path)
         with open(str(output_path) + "/inference_config.json", "w") as f:
             json.dump(conf, f, indent=4)
-
     """
     logging related part
     """
-    logging_related(output_path=output_path, debug=False, training=False)
+    logging_related(rank=0, output_path=output_path, debug=False, training=False)
     inference(conf)
     end = timer()
     logging.info("Total time used: {:.1f}".format(end - start))

@@ -82,20 +82,13 @@ def load_data_ddp(conf, rank, world_size, training=True):
 
 def load_data(conf, training=True):
     if training:
-        id_path = conf.data.emd_id_path
-    else:
-        id_path = conf.test_data.emd_id_path
-    with open(id_path) as file:
-        lines = file.readlines()
-        id_list = [line.rstrip() for line in lines]
+        with open(conf.data.train_id_path) as file:
+            lines = file.readlines()
+            train_id = [line.rstrip() for line in lines]
+        with open(conf.data.val_id_path) as file:
+            lines = file.readlines()
+            val_id = [line.rstrip() for line in lines]
 
-    if training:
-        RANDOM_SEED = int(conf.general.seed)
-        np.random.seed(RANDOM_SEED)
-        val_size = int(conf.training.val_ratio * len(id_list))
-        rng = np.random.default_rng(RANDOM_SEED)
-        val_id = list(rng.choice(id_list, size=val_size, replace=False))
-        train_id = list(set(id_list).difference(val_id))
         train_data = CryoEM_Map_Dataset(
             conf.data.data_path,
             train_id,
@@ -122,6 +115,9 @@ def load_data(conf, training=True):
         return train_dataloader, val_dataloader
 
     else:
+        with open(conf.test_data.emd_id_path) as file:
+            lines = file.readlines()
+            id_list = [line.rstrip() for line in lines]
         test_data = CryoEM_Map_TestDataset(
             conf.test_data.data_path,
             id_list,
@@ -152,7 +148,6 @@ def process_config(conf, config_name="train"):
         output_path = (
             Path("/hpcgpfs01/scratch/xdai/resem_training/")
             / config_name
-            / Path(conf["model"]["model_type"] + "_" + str(conf["model"]["n_blocks"]))
             / Path(
                 str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
             )

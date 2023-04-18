@@ -108,7 +108,7 @@ def map_resample(input_map_1, input_map_2=None):
     input_map = deepcopy(input_map_1.data)
     scale_factor = [vol / 1.0 for vol in voxel_size]
     output_shape = [
-        round(dim * scale) for dim, scale in zip(input_map.shape, scale_factor)
+        math.floor(dim * scale) for dim, scale in zip(input_map.shape, scale_factor)
     ]
     if input_map_2 is not None:
         voxel_size_2 = get_voxel_size(input_map_2)
@@ -119,7 +119,7 @@ def map_resample(input_map_1, input_map_2=None):
     input_map = skimage.transform.resize(
         input_map,
         output_shape,
-        order=3,
+        order=1,
         mode="reflect",
         cval=0,
         clip=True,

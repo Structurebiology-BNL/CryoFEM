@@ -5,18 +5,27 @@ import pathlib
 import pandas as pd
 import argparse
 
+"""
+we use the following query to get the ids of the EMDB entries:
+* AND sample_type:"protein" AND structure_determination_method:"singleparticle" AND resolution:[2 TO 5} AND xref_links:"pdb" AND release_date:[2000-01-01T00:00:00Z TO 2023-3-16T23:59:59Z] AND database:"EMDB"
+"""
+
 
 def fasta_pdb_download(batch, total_batches=5):
     with open("/host/ResEM/data_processing/emdb_ids_full.txt") as file:
         ids = file.readlines()
         ids = [line.rstrip() for line in ids]
 
+    assert batch < total_batches, "Batch number should be less than total batches."
     batch_size = len(ids) // total_batches
-    ids_ = ids[batch * batch_size : (batch + 1) * batch_size]
+    if batch == total_batches - 1:
+        ids = ids[batch * batch_size :]
+    else:
+        ids = ids[batch * batch_size : (batch + 1) * batch_size]
 
     failed_list = []
     emd_to_pdb = {}
-    for id in tqdm(ids_):
+    for id in tqdm(ids):
         id = id[4:]
         folder_name = "emd_" + id
         emdb_link = "https://www.ebi.ac.uk/emdb/EMD-{}?tab=links".format(id)

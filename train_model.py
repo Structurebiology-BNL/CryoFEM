@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from skimage.metrics import structural_similarity
 from tqdm import tqdm
 from models.map_splitter import reconstruct_maps
-from models.unet import UNetRes, UNet
+from models.unet import UNetRes
 from utils.utils import (
     load_data,
     EarlyStopper,
@@ -31,13 +31,7 @@ def train(conf):
         else "cpu"
     )
     train_dataloader, val_dataloader = load_data(conf, training=True)
-    if conf.model.model_type == "unetres":
-        model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-            device
-        )
-
-    elif conf.model.model_type == "unet":
-        model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+    model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
         )
     
@@ -53,7 +47,9 @@ def train(conf):
     step_size = conf.training.scheduler_step_size
     lr_decay = conf.training.lr_decay
     scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=step_size, gamma=lr_decay
+        optimizer,
+        step_size=conf.training.scheduler_step_size,
+        gamma=conf.training.lr_decay,
     )
     model = torch.compile(model)
     if conf.training.load_checkpoint:
@@ -84,9 +80,8 @@ def train(conf):
     for epoch in range(EPOCHS):
         model.train()
         train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
-        for i, (x_train, y_train, original_shape, id) in enumerate(
-            tqdm(train_dataloader)
-        ):
+        train_loss_l1, train_loss_cc = 0.0, 0.0
+        for x_train, y_train, original_shape, id in tqdm(train_dataloader):
             x_train = x_train.squeeze()
             y_train = y_train.squeeze()
             y_pred = torch.tensor(())
@@ -103,7 +98,7 @@ def train(conf):
                     )
                 optimizer.zero_grad(set_to_none=True)
                 y_pred_partial = model(x_train_partial)
-                loss_ = criterion(y_pred_partial, y_train_partial)
+                _, _, loss_ = criterion(y_pred_partial, y_train_partial)
                 loss_.backward()
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
@@ -123,11 +118,10 @@ def train(conf):
                 box_size=conf.data.box_size,
                 core_size=conf.data.core_size,
             )
-
-            struc_sim += structural_similarity(y_pred_recon, y_train_recon)
-            pcc += pearson_cc(y_pred_recon, y_train_recon)
-            psnr += peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
-            train_loss += (
+            tmp_ssim = structural_similarity(y_pred_recon, y_train_recon)
+            tmp_pcc = pearson_cc(y_pred_recon, y_train_recon)
+            tmp_psnr = peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
+            tmp_loss_l1, tmp_loss_cc, tmp_loss = (
                 criterion(
                     torch.from_numpy(y_pred_recon).to(device),
                     torch.from_numpy(y_train_recon).to(device),
@@ -136,16 +130,23 @@ def train(conf):
                 .cpu()
                 .numpy()
             )
-
+            struc_sim += tmp_ssim
+            pcc += tmp_pcc
+            psnr += tmp_psnr
+            train_loss += tmp_loss
+            train_loss_l1 += tmp_loss_l1
+            train_loss_cc += tmp_loss_cc
             logging.info(
                 "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                "psnr: {:.2f}, pcc: {:.4f}".format(
+                "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
                     epoch + 1,
-                    train_loss / (i + 1),
+                    tmp_loss,
                     id[0],
-                    struc_sim / (i + 1),
-                    psnr / (i + 1),
-                    pcc / (i + 1),
+                    tmp_ssim,
+                    tmp_psnr,
+                    tmp_pcc,
+                    tmp_loss_l1,
+                    tmp_loss_cc,
                 )
             )
 
@@ -171,8 +172,10 @@ def train(conf):
         """
         model.eval()
         with torch.no_grad():
+            best_val_loss = 1000.0
             val_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
-            for i, (x_val, y_val, original_shape, id) in enumerate(val_dataloader):
+            val_loss_l1, val_loss_cc = 0.0, 0.0
+            for x_val, y_val, original_shape, id in val_dataloader:
                 x_val = x_val.squeeze()
                 y_val = y_val.squeeze()
                 y_val_pred = torch.tensor(())
@@ -201,10 +204,10 @@ def train(conf):
                     box_size=conf.data.box_size,
                     core_size=conf.data.core_size,
                 )
-                struc_sim += structural_similarity(y_val_pred_recon, y_val_recon)
-                pcc += pearson_cc(y_val_pred_recon, y_val_recon)
-                psnr += peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
-                val_loss += (
+                tmp_ssim = structural_similarity(y_val_pred_recon, y_val_recon)
+                tmp_pcc = pearson_cc(y_val_pred_recon, y_val_recon)
+                tmp_psnr = peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
+                tmp_loss_l1, tmp_loss_cc, tmp_loss = (
                     criterion(
                         torch.from_numpy(y_val_pred_recon).to(device),
                         torch.from_numpy(y_val_recon).to(device),
@@ -213,15 +216,23 @@ def train(conf):
                     .cpu()
                     .numpy()
                 )
+                struc_sim += tmp_ssim
+                pcc += tmp_pcc
+                psnr += tmp_psnr
+                val_loss += tmp_loss
+                val_loss_l1 += tmp_loss_l1
+                val_loss_cc += tmp_loss_cc
                 logging.info(
                     "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                    "psnr: {:.2f}, pcc: {:.4f}".format(
+                    "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
                         epoch + 1,
-                        val_loss / (i + 1),
+                        tmp_loss,
                         id[0],
-                        struc_sim / (i + 1),
-                        psnr / (i + 1),
-                        pcc / (i + 1),
+                        tmp_ssim,
+                        tmp_psnr,
+                        tmp_pcc,
+                        tmp_loss_l1,
+                        tmp_loss_cc,
                     )
                 )
             val_loss = val_loss / len(val_dataloader)
@@ -240,21 +251,24 @@ def train(conf):
             )
             if early_stopper.early_stop(val_loss):
                 break
-            if struc_sim > 0.98 and psnr > 40 and pcc > 0.5 and not conf.general.debug:
-                state = {
-                    "model_state": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "scheduler": scheduler.state_dict(),
-                }
-                file_name = (
-                    conf.output_path
-                    + "/"
-                    + "Epoch_{}".format(epoch + 1)
-                    + "_ssim_{:.3f}".format(val_struc_sim)
-                    + "_psnr_{:.2f}".format(val_psnr)
-                    + "_pcc_{:.3f}".format(val_pcc)
-                )
-                torch.save(state, file_name + ".pt")
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                if not conf.general.debug:
+                    state = {
+                        "model_state": model.state_dict(),
+                        "optimizer": optimizer.state_dict(),
+                        "scheduler": scheduler.state_dict(),
+                    }
+                    file_name = (
+                        conf.output_path
+                        + "/"
+                        + "Epoch_{}".format(epoch + 1)
+                        + "_ssim_{:.3f}".format(val_struc_sim)
+                        + "_psnr_{:.2f}".format(val_psnr)
+                        + "_pcc_{:.3f}".format(val_pcc)
+                    )
+                    torch.save(state, file_name + ".pt")
+
         logging.info(
             "Epoch {} train loss: {:.4f}, val loss: {:.4f},\n"
             "train ssim: {:.4f}, val ssim: {:.4f}, lr = {}\n"

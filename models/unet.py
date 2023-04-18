@@ -78,7 +78,6 @@ class UNet(nn.Module):
         self.leaky_relu = nn.LeakyReLU()
 
     def forward(self, x0):
-
         x1 = self.m_head(x0)
         x2 = self.m_down1(x1)
         x3 = self.m_down2(x2)
