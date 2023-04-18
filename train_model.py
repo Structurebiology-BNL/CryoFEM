@@ -82,9 +82,8 @@ def train(conf):
     for epoch in range(EPOCHS):
         model.train()
         train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
-        for i, (x_train, y_train, original_shape, id) in enumerate(
-            tqdm(train_dataloader)
-        ):
+        train_loss_l1, train_loss_cc = 0.0, 0.0
+        for x_train, y_train, original_shape, id in tqdm(train_dataloader):
             x_train = x_train.squeeze()
             y_train = y_train.squeeze()
             y_pred = torch.tensor(())
@@ -101,7 +100,7 @@ def train(conf):
                     )
                 optimizer.zero_grad(set_to_none=True)
                 y_pred_partial = model(x_train_partial)
-                loss_ = criterion(y_pred_partial, y_train_partial)
+                _, _, loss_ = criterion(y_pred_partial, y_train_partial)
                 loss_.backward()
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
@@ -121,11 +120,10 @@ def train(conf):
                 box_size=conf.data.box_size,
                 core_size=conf.data.core_size,
             )
-
-            struc_sim += structural_similarity(y_pred_recon, y_train_recon)
-            pcc += pearson_cc(y_pred_recon, y_train_recon)
-            psnr += peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
-            train_loss += (
+            tmp_ssim = structural_similarity(y_pred_recon, y_train_recon)
+            tmp_pcc = pearson_cc(y_pred_recon, y_train_recon)
+            tmp_psnr = peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
+            tmp_loss_l1, tmp_loss_cc, tmp_loss = (
                 criterion(
                     torch.from_numpy(y_pred_recon).to(device),
                     torch.from_numpy(y_train_recon).to(device),
@@ -134,16 +132,23 @@ def train(conf):
                 .cpu()
                 .numpy()
             )
-
+            struc_sim += tmp_ssim
+            pcc += tmp_pcc
+            psnr += tmp_psnr
+            train_loss += tmp_loss
+            train_loss_l1 += tmp_loss_l1
+            train_loss_cc += tmp_loss_cc
             logging.info(
                 "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                "psnr: {:.2f}, pcc: {:.4f}".format(
+                "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
                     epoch + 1,
-                    train_loss / (i + 1),
+                    tmp_loss,
                     id[0],
-                    struc_sim / (i + 1),
-                    psnr / (i + 1),
-                    pcc / (i + 1),
+                    tmp_ssim,
+                    tmp_psnr,
+                    tmp_pcc,
+                    tmp_loss_l1,
+                    tmp_loss_cc,
                 )
             )
 
@@ -171,7 +176,8 @@ def train(conf):
         with torch.no_grad():
             best_val_loss = 1000.0
             val_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
-            for i, (x_val, y_val, original_shape, id) in enumerate(val_dataloader):
+            val_loss_l1, val_loss_cc = 0.0, 0.0
+            for x_val, y_val, original_shape, id in val_dataloader:
                 x_val = x_val.squeeze()
                 y_val = y_val.squeeze()
                 y_val_pred = torch.tensor(())
@@ -200,10 +206,10 @@ def train(conf):
                     box_size=conf.data.box_size,
                     core_size=conf.data.core_size,
                 )
-                struc_sim += structural_similarity(y_val_pred_recon, y_val_recon)
-                pcc += pearson_cc(y_val_pred_recon, y_val_recon)
-                psnr += peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
-                val_loss += (
+                tmp_ssim = structural_similarity(y_val_pred_recon, y_val_recon)
+                tmp_pcc = pearson_cc(y_val_pred_recon, y_val_recon)
+                tmp_psnr = peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
+                tmp_loss_l1, tmp_loss_cc, tmp_loss = (
                     criterion(
                         torch.from_numpy(y_val_pred_recon).to(device),
                         torch.from_numpy(y_val_recon).to(device),
@@ -212,15 +218,23 @@ def train(conf):
                     .cpu()
                     .numpy()
                 )
+                struc_sim += tmp_ssim
+                pcc += tmp_pcc
+                psnr += tmp_psnr
+                val_loss += tmp_loss
+                val_loss_l1 += tmp_loss_l1
+                val_loss_cc += tmp_loss_cc
                 logging.info(
                     "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                    "psnr: {:.2f}, pcc: {:.4f}".format(
+                    "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
                         epoch + 1,
-                        val_loss / (i + 1),
+                        tmp_loss,
                         id[0],
-                        struc_sim / (i + 1),
-                        psnr / (i + 1),
-                        pcc / (i + 1),
+                        tmp_ssim,
+                        tmp_psnr,
+                        tmp_pcc,
+                        tmp_loss_l1,
+                        tmp_loss_cc,
                     )
                 )
             val_loss = val_loss / len(val_dataloader)

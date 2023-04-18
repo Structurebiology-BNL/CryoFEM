@@ -40,7 +40,7 @@ class Composite_Loss(nn.Module):
             cc_ = pcc_loss(input, target)
         loss = (loss_1 + self.cc_weight * cc_) / (1 + self.cc_weight)
 
-        return loss
+        return loss_1, cc_, loss
 
 
 def create_soft_edged_kernel_pxl(r1):
