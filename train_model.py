@@ -32,20 +32,18 @@ def train(conf):
     )
     train_dataloader, val_dataloader = load_data(conf, training=True)
     model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-            device
-        )
-    
+        device
+    )
+
     lr = conf.training.lr
     if conf.training.optimizer == "adamW":
         optimizer = torch.optim.AdamW(
             model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
         )
-    else: # default is adam
+    else:  # default is adam
         optimizer = torch.optim.Adam(
             model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
         )
-    step_size = conf.training.scheduler_step_size
-    lr_decay = conf.training.lr_decay
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer,
         step_size=conf.training.scheduler_step_size,
@@ -54,13 +52,15 @@ def train(conf):
     model = torch.compile(model)
     if conf.training.load_checkpoint:
         logging.info(
-            "Resume training and load model from {}".format(conf.training.load_checkpoint)
+            "Resume training and load model from {}".format(
+                conf.training.load_checkpoint
+            )
         )
         checkpoint = torch.load(conf.training.load_checkpoint)
         model.load_state_dict(checkpoint["model_state"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
-       
+
     logging.info(
         "Total train samples {}, val samples {}".format(
             len(train_dataloader), len(val_dataloader)

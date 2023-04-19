@@ -13,7 +13,7 @@
         "core_size": 50
     },
     "training": {
-        "optimizer": "adam",
+        "optimizer": "adamW",
         "epochs": 6,
         "batch_size": 16,
         "loss_1_type": "l1",
@@ -23,9 +23,9 @@
         "lr": 1e-4,
         "val_ratio": 0.2,
         "scheduler_step_size": 10,
-        "lr_decay": 0.7,
+        "lr_decay": 0.5,
         "weight_decay": 5e-04,
-        "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/unetres_2/2023-04-10-10-18/Epoch_6_ssim_0.988_psnr_42.71_pcc_0.562.pt"
+        "load_checkpoint": 0
     },
     "model": {
         "model_type": "unetres",
