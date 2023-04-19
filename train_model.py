@@ -121,21 +121,17 @@ def train(conf):
             tmp_ssim = structural_similarity(y_pred_recon, y_train_recon)
             tmp_pcc = pearson_cc(y_pred_recon, y_train_recon)
             tmp_psnr = peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
-            tmp_loss_l1, tmp_loss_cc, tmp_loss = (
-                criterion(
-                    torch.from_numpy(y_pred_recon).to(device),
-                    torch.from_numpy(y_train_recon).to(device),
-                )
-                .detach()
-                .cpu()
-                .numpy()
+            tmp_loss_l1, tmp_loss_cc, tmp_loss = criterion(
+                torch.from_numpy(y_pred_recon).to(device),
+                torch.from_numpy(y_train_recon).to(device),
             )
+
             struc_sim += tmp_ssim
             pcc += tmp_pcc
             psnr += tmp_psnr
-            train_loss += tmp_loss
-            train_loss_l1 += tmp_loss_l1
-            train_loss_cc += tmp_loss_cc
+            train_loss += tmp_loss.detach().cpu().numpy()
+            train_loss_l1 += tmp_loss_l1.detach().cpu().numpy()
+            train_loss_cc += tmp_loss_cc.detach().cpu().numpy()
             logging.info(
                 "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                 "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
@@ -207,21 +203,17 @@ def train(conf):
                 tmp_ssim = structural_similarity(y_val_pred_recon, y_val_recon)
                 tmp_pcc = pearson_cc(y_val_pred_recon, y_val_recon)
                 tmp_psnr = peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
-                tmp_loss_l1, tmp_loss_cc, tmp_loss = (
-                    criterion(
-                        torch.from_numpy(y_val_pred_recon).to(device),
-                        torch.from_numpy(y_val_recon).to(device),
-                    )
-                    .detach()
-                    .cpu()
-                    .numpy()
+                tmp_loss_l1, tmp_loss_cc, tmp_loss = criterion(
+                    torch.from_numpy(y_val_pred_recon).to(device),
+                    torch.from_numpy(y_val_recon).to(device),
                 )
+
                 struc_sim += tmp_ssim
                 pcc += tmp_pcc
                 psnr += tmp_psnr
-                val_loss += tmp_loss
-                val_loss_l1 += tmp_loss_l1
-                val_loss_cc += tmp_loss_cc
+                val_loss += tmp_loss.detach().cpu().numpy()
+                val_loss_l1 += tmp_loss_l1.detach().cpu().numpy()
+                val_loss_cc += tmp_loss_cc.detach().cpu().numpy()
                 logging.info(
                     "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
                     "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(

@@ -36,8 +36,10 @@ class Composite_Loss(nn.Module):
             cc_ = masked_pcc_loss(input, target)
         elif self.cc_type == "kernel_pcc":
             cc_ = kernel_pcc_loss(input, target, self.kernel)
-        else:
+        elif self.cc_type == "pcc":
             cc_ = pcc_loss(input, target)
+        else:
+            raise ValueError("Unknown cc_type: {}".format(self.cc_type))
         loss = (loss_1 + self.cc_weight * cc_) / (1 + self.cc_weight)
 
         return loss_1, cc_, loss
