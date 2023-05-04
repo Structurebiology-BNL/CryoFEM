@@ -1,7 +1,7 @@
 {
     "general": {
         "seed": 3333,
-        "gpu_id": 1, 
+        "gpu_id": 0,
         "debug": 0
     },
     "data": {
@@ -18,16 +18,16 @@
         "batch_size": 16,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
-        "cc_weight": 1,
-        "cc_type": "kernel_pcc",
-        "lr": 1e-4,
+        "cc_weight": 0.5,
+        "cc_type": "mask_pcc",
+        "lr": 5e-05,
         "scheduler_step_size": 6,
         "lr_decay": 0.5,
-        "weight_decay": 5e-04,
+        "weight_decay": 0.0005,
         "load_checkpoint": 0
     },
     "model": {
-        "n_blocks": 3,
+        "n_blocks": 2,
         "act_mode": "R"
     }
 }

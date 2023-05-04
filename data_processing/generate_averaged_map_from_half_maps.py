@@ -9,7 +9,7 @@ from tqdm import tqdm
 from copy import deepcopy
 import argparse
 
-INPUT_MAP_PATH = "/host/full_emd_data/"
+INPUT_MAP_PATH = "/host/full_emdb_data/"
 
 
 def average_map(batch, total_batches=7):

@@ -132,8 +132,8 @@ def load_data(conf, training=True):
         return test_dataloader
 
 
-def process_config(conf, config_name="train"):
-    if conf["training"]["load_checkpoint"]:
+def process_config(conf, config_name="train", training=True):
+    if conf["training"]["load_checkpoint"] and training:
         """
         load the model config from checkpoint dir
         """
@@ -141,6 +141,10 @@ def process_config(conf, config_name="train"):
             "/".join(conf["training"]["load_checkpoint"].split("/")[:-1]) + "/config.json"
         )
         with open(model_config_path, "r") as f:
+            conf_model = json.load(f)
+        conf["model"] = conf_model["model"]
+    if not training:
+        with open(conf["checkpoint"]["model_config"], "r") as f:
             conf_model = json.load(f)
         conf["model"] = conf_model["model"]
     output_path = None
@@ -203,7 +207,7 @@ def pearson_cc(x, y):
     var_y = np.mean(y**2) - (np.mean(y)) ** 2
     mean_xy = np.mean(x * y)
 
-    return np.mean((mean_xy - mean_x * mean_y) / (np.sqrt(var_x * var_y)) + 1e-10)
+    return np.mean((mean_xy - mean_x * mean_y) / np.sqrt(var_x * var_y + 1e-12))
 
 
 def download_half_maps(emdb_id):
