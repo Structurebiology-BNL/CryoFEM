@@ -1,15 +1,15 @@
 {
     "general": {
         "seed": 3,
-        "gpu_id": 0
+        "gpu_id": 2
     },
     "test_data": {
-        "data_path": "./example_data",
-        "emd_id_path": "data_processing/sample_id.txt",
+        "data_path": "/host/full_emdb_data",
+        "emd_id_path": "emdb_ids_manuscript.txt",
         "save_output": 1
     },
     "checkpoint": {
-        "model_config": "models/trained_weights/config.json",
-        "trained_weights": "models/trained_weights/ResEM_state_dict.pt"
+        "model_config": "results/train/2023-05-11-20-59/config.json",
+        "trained_weights": "results/train/2023-05-11-20-59/Epoch_3_ssim_0.991_psnr_43.76_pcc_0.573.pt"
     }
 }

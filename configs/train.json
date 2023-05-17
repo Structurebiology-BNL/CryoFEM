@@ -1,7 +1,7 @@
 {
     "general": {
         "seed": 3333,
-        "gpu_id": 0,
+        "gpu_id": 1,
         "debug": 0
     },
     "data": {
@@ -9,22 +9,22 @@
         "train_id_path": "data_processing/train_ids_30_identity.txt",
         "val_id_path": "data_processing/val_ids_30_identity.txt",
         "augmentation": 1,
-        "box_size": 64,
-        "core_size": 50
+        "box_size": 128,
+        "core_size": 100
     },
     "training": {
         "optimizer": "adamW",
         "epochs": 40,
-        "batch_size": 16,
+        "batch_size": 2,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
         "cc_weight": 0.5,
         "cc_type": "mask_pcc",
-        "lr": 5e-05,
+        "lr": 2e-05,
         "scheduler_step_size": 6,
         "lr_decay": 0.5,
         "weight_decay": 0.0005,
-        "load_checkpoint": 0
+        "load_checkpoint": "results/train/2023-04-27-23-25/Epoch_1_ssim_0.988_psnr_41.22_pcc_0.565.pt"
     },
     "model": {
         "n_blocks": 2,
