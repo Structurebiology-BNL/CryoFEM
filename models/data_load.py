@@ -27,9 +27,6 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
         self.id_list = id_list
         self.box_size = box_size
         self.core_size = core_size
-        assert (augmentation and training) == True or (
-            (not augmentation and not training)
-        ), "augmentation and training should be on or off together"
         self.augmentation = augmentation
         self.training = training
 
@@ -53,9 +50,9 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         simulated_map = (simulated_map - simulated_map.min()) / (
             simulated_map.max() - simulated_map.min()
-        )
-
-        training_transform = torchio.Compose(
+        )     
+        if self.training and self.augmentation:
+            training_transform = torchio.Compose(
             [
                 torchio.RandomAnisotropy(
                     downsampling=1.5, image_interpolation="bspline", p=0.25
@@ -64,7 +61,6 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
                 torchio.RandomNoise(std=0.1, p=0.25),
             ]
         )
-        if self.training and self.augmentation:
             input_map = torchio.ScalarImage(tensor=input_map[None, ...])
             input_map = training_transform(input_map)
             input_map = input_map.tensor.squeeze().numpy().astype(np.float32)
