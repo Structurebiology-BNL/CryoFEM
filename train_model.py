@@ -31,10 +31,17 @@ def train(conf):
         else "cpu"
     )
     train_dataloader, val_dataloader = load_data(conf, training=True)
+    if "n_channel" in conf.model:
+        model = UNetRes(
+            nc=conf.model.n_channel,
+            n_blocks=conf.model.n_blocks,
+            act_mode=conf.model.act_mode,
+        ).to(device)
+    else:
+        model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+            device
+        )
 
-    model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-        device
-    )
     lr = conf.training.lr
     if conf.training.optimizer == "adamW":
         optimizer = torch.optim.AdamW(
@@ -296,7 +303,7 @@ if __name__ == "__main__":
     """
     logging related part
     """
-    logging_related(rank=0, output_path=conf.output_path, debug=conf.general.debug)
+    logging_related(rank=0, output_path=conf.output_path)
     writer = SummaryWriter(log_dir=conf.output_path)
     train(conf)
     writer.flush()
