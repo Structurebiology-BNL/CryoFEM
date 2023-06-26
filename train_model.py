@@ -56,7 +56,10 @@ def train(conf):
         step_size=conf.training.scheduler_step_size,
         gamma=conf.training.lr_decay,
     )
-    model = torch.compile(model)
+    # if using PyTorch 2.0, use torch.compile to accelerate the training
+    if float(torch.__version__[:3]) >= 2.0:
+        logging.info("Using PyTorch 2.0, use torch.compile to accelerate the training")
+        model = torch.compile(model)
     if conf.training.load_checkpoint:
         logging.info(
             "Resume training and load model from {}".format(

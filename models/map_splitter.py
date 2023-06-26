@@ -114,10 +114,11 @@ def map_resample(input_map_1, input_map_2=None):
         voxel_size_2 = get_voxel_size(input_map_2)
         assert voxel_size_2 == voxel_size, "two half maps must have same voxel size"
         input_map_2 = deepcopy(input_map_2.data)
-        input_map = (input_map_2 + input_map) / 2.0
-
-    input_map = skimage.transform.resize(
-        input_map,
+        averaged_map = (input_map_2 + input_map) / 2.0
+    else:
+        averaged_map = input_map
+    resampled_map = skimage.transform.resize(
+        averaged_map,
         output_shape,
         order=1,
         mode="reflect",
@@ -128,7 +129,7 @@ def map_resample(input_map_1, input_map_2=None):
         anti_aliasing_sigma=None,
     )
 
-    input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
-    input_cube_list = np.array(create_cube_list(input_map))
+    resampled_map = (resampled_map - resampled_map.min()) / (resampled_map.max() - resampled_map.min())
+    input_cube_list = np.array(create_cube_list(resampled_map))
 
-    return input_map, torch.tensor(input_cube_list, dtype=torch.float), meta_data
+    return resampled_map, averaged_map, torch.tensor(input_cube_list, dtype=torch.float), meta_data

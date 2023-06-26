@@ -6,18 +6,17 @@ Our image enhancement model can be used synergistically with [AlphaFold](https:/
 
 <img src="https://github.com/Structurebiology-BNL/ResEM/blob/main/utils/flow_chart.png" width=45% height=45%>
 
-In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold), [PHENIX customized version](https://phenix-online.org/version_docs/dev-4380/reference/alphafold_in_colab.html) to implement the proposed workflow. 
+In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold) to implement the proposed workflow. 
 
 ## Requirements
 ### Update
-* March 2023: Try our Colab notebook to run ResEM on Google Colab. [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/ResEM/blob/main/Colab_ResEM.ipynb). Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/ResEM/blob/main/Colab_ResEM.ipynb) for more details.
+* March 2023: Try our Colab notebook to run ResEM on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/ResEM/blob/main/Colab_ResEM.ipynb). Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/ResEM/blob/main/Colab_ResEM.ipynb) for more details.
   
 * March 2023: We have tested ResEM with PyTorch 2.0. By default if you run the training script with PyTorch 2.0, it will first compile to model with `torch.compile` to accelerate the training
 
 ResEM is developed with Python 3.9 and PyTorch 1.12. Other important packages include:
 ```
 torchio 0.18.86
-gemmi 0.5.8
 scikit-image 0.19.3 
 mrcfile 1.4.3
 numpy 1.24.1
@@ -55,7 +54,7 @@ python train_model.py --config configs/train.json
 ### Cite
 If you find our work helpful, please consider cite our work as follows:
 ```
-@article {resem2022,
+@article {resem2023,
 	author = {Dai, Xin and Wu, Longlong and Yoo, Shinjae and Liu, Qun},
 	title = {Integrating AlphaFold and deep learning for atomistic interpretation of cryo-EM maps},
 	year = {2023},

@@ -38,10 +38,10 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
         folder_name = "emd_" + str(id)
         map_dir = pathlib.Path(self.data_dir + "/{}".format(folder_name))
         os.chdir(map_dir)
-        if os.path.isfile("resampled_map.mrc"):
-            input_map = mrcfile.open("resampled_map.mrc", mode="r")
-        else:
+        if os.path.isfile("resampled_map_{}.mrc".format(id)):
             input_map = mrcfile.open("resampled_map_{}.mrc".format(id), mode="r")
+        else:
+            input_map = mrcfile.open("resampled_map.mrc", mode="r")
         input_map = deepcopy(input_map.data)
         simulated_map = mrcfile.open(
             "simulated_map_{}_res_2_vol_1.mrc".format(id), mode="r"
@@ -50,17 +50,17 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         simulated_map = (simulated_map - simulated_map.min()) / (
             simulated_map.max() - simulated_map.min()
-        )     
+        )
         if self.training and self.augmentation:
             training_transform = torchio.Compose(
-            [
-                torchio.RandomAnisotropy(
-                    downsampling=1.5, image_interpolation="bspline", p=0.25
-                ),
-                torchio.RandomBlur((0, 0.5), p=0.25),
-                torchio.RandomNoise(std=0.1, p=0.25),
-            ]
-        )
+                [
+                    torchio.RandomAnisotropy(
+                        downsampling=1.5, image_interpolation="bspline", p=0.25
+                    ),
+                    torchio.RandomBlur((0, 0.5), p=0.25),
+                    torchio.RandomNoise(std=0.1, p=0.25),
+                ]
+            )
             input_map = torchio.ScalarImage(tensor=input_map[None, ...])
             input_map = training_transform(input_map)
             input_map = input_map.tensor.squeeze().numpy().astype(np.float32)

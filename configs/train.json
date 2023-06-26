@@ -5,7 +5,7 @@
         "debug": 0
     },
     "data": {
-        "data_path": "/hpcgpfs01/scratch/xdai/emdb_data",
+        "data_path": "/host/full_emdb_data",
         "train_id_path": "data_processing/train_ids_30_identity.txt",
         "val_id_path": "data_processing/val_ids_30_identity.txt",
         "augmentation": 1,
@@ -14,14 +14,14 @@
     },
     "training": {
         "optimizer": "adamW",
-        "epochs": 1,
+        "epochs": 40,
         "batch_size": 2,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
         "cc_weight": 0.1,
         "cc_type": "pcc",
-        "lr": 6e-05,
-        "scheduler_step_size": 5,
+        "lr": 1e-05,
+        "scheduler_step_size": 6,
         "lr_decay": 0.3,
         "weight_decay": 0.0005,
         "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-05-30-10-39/Epoch_1_ssim_0.991_psnr_43.40_pcc_0.562.pt"

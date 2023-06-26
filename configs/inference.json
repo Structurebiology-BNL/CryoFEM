@@ -9,7 +9,7 @@
         "save_output": 1
     },
     "checkpoint": {
-        "model_config": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-05-11-20-59/config.json",
-        "trained_weights": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-05-11-20-59/Epoch_3_ssim_0.991_psnr_43.76_pcc_0.573.pt"
+        "model_config": "models/trained_weights/config.json",
+        "trained_weights": "ResEM_128_state_dict.pt"
     }
 }

@@ -110,39 +110,37 @@ def kernel_pcc_loss(output, target, kernel):
         return kernel_weighted_cc_loss
 
 
-def masked_pcc_loss(output, target):
-    # Masked Pearson correlation coefficient
-    # i.e., only consider non-zero element correlation
-    # here non-zero refers to non-zero in the target
-    if output.dim() > 3:
-        x, y = output.squeeze(dim=1), target.squeeze(dim=1)
-    else:
-        x, y = output, target
-    if y.sum() == 0.0:  # pcc is not defined
+def masked_pearson_corr(x, y):
+    if y.sum() == 0:  # pcc is not defined
         return 0.5
-    else:
-        mask = y > 0
-        if x.dim() > 3:
-            num_element = torch.numel(x[0, :, :, :])
-        else:
-            num_element = torch.numel(x)
-        scale_factor = (
-            num_element / mask.sum()
-        )  # only use non-zero elements in averaging
+    mask = y != 0
+    x_masked = x[mask]
+    y_masked = y[mask]
 
-        mean_x = torch.mean(mask * x, dim=(-1, -2, -3)) * scale_factor
-        mean_y = torch.mean(y, dim=(-1, -2, -3)) * scale_factor
+    x_mean = x_masked.mean()
+    y_mean = y_masked.mean()
 
-        mean_xy = torch.mean(x * y * scale_factor, dim=(-1, -2, -3))
-        var_x = (
-            torch.mean((mask * x) ** 2, dim=(-1, -2, -3)) * scale_factor - mean_x**2
-        )
-        var_y = torch.mean(y**2, dim=(-1, -2, -3)) * scale_factor - mean_y**2
-        pcc = torch.mean(
-            (mean_xy - mean_x * mean_y) / torch.sqrt(var_x * var_y + 1e-10)
-        )
+    x_centered = x_masked - x_mean
+    y_centered = y_masked - y_mean
 
-        return 1.0 - pcc
+    covariance = (x_centered * y_centered).sum()
+    x_var = (x_centered**2).sum()
+    y_var = (y_centered**2).sum()
+
+    correlation = covariance / torch.sqrt(x_var * y_var + 1e-12)
+    return correlation
+
+
+def masked_pcc_loss(x, y):
+    x = x.squeeze()
+    y = y.squeeze()
+    correlations = torch.tensor(
+        [masked_pearson_corr(x[i], y[i]) for i in range(x.shape[0])]
+    )
+
+    # Calculate the average correlation
+    avg_correlation = torch.mean(correlations)
+    return 1 - avg_correlation
 
 
 def pcc_loss(output, target):
@@ -166,7 +164,7 @@ def pcc_loss(output, target):
         )
         mean_xy = torch.mean(x * y, dim=(-1, -2, -3))
         pcc = torch.mean(
-            (mean_xy - mean_x * mean_y) / torch.sqrt(var_x * var_y + 1e-10)
+            (mean_xy - mean_x * mean_y) / torch.sqrt(var_x * var_y + 1e-12)
         )
 
         return 1 - pcc
