@@ -5,11 +5,11 @@
     },
     "test_data": {
         "data_path": "/host/full_emdb_data",
-        "emd_id_path": "emdb_ids_manuscript.txt",
+        "emd_id_path": "data_processing/sample_id.txt",
         "save_output": 1
     },
     "checkpoint": {
-        "model_config": "results/train/2023-05-11-20-59/config.json",
-        "trained_weights": "results/train/2023-05-11-20-59/Epoch_3_ssim_0.991_psnr_43.76_pcc_0.573.pt"
+        "model_config": "models/trained_weights/config.json",
+        "trained_weights": "ResEM_128_state_dict.pt"
     }
 }

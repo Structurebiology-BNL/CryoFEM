@@ -1,7 +1,7 @@
 {
     "general": {
         "seed": 3333,
-        "gpu_id": 1,
+        "gpu_id": 0,
         "debug": 0
     },
     "data": {
@@ -18,13 +18,13 @@
         "batch_size": 2,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
-        "cc_weight": 0.5,
-        "cc_type": "mask_pcc",
-        "lr": 2e-05,
+        "cc_weight": 0.1,
+        "cc_type": "pcc",
+        "lr": 1e-05,
         "scheduler_step_size": 6,
-        "lr_decay": 0.5,
+        "lr_decay": 0.3,
         "weight_decay": 0.0005,
-        "load_checkpoint": "results/train/2023-04-27-23-25/Epoch_1_ssim_0.988_psnr_41.22_pcc_0.565.pt"
+        "load_checkpoint": "results/train/2023-05-11-20-59/Epoch_3_ssim_0.991_psnr_43.76_pcc_0.573.pt"
     },
     "model": {
         "n_blocks": 2,

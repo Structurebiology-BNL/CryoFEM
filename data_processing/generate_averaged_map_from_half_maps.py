@@ -16,6 +16,7 @@ def average_map(batch, total_batches=7):
     with open("final_valid_ids.txt") as file:
         ids = file.readlines()
         ids = [line.rstrip() for line in ids]
+
     assert batch < total_batches, "Batch number should be less than total batches."
     batch_size = len(ids) // total_batches
     if batch == total_batches - 1:

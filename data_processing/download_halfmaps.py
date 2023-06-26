@@ -25,7 +25,7 @@ def download_halfmaps(batch, total_batches=7):
             id, id
         )
         try:
-            new_dir = pathlib.Path("/host/full_emd_data/{}".format(folder_name))
+            new_dir = pathlib.Path("/host/full_emdb_data/{}".format(folder_name))
             new_dir.mkdir(parents=True, exist_ok=True)
             download_url(link_1, new_dir)
             download_url(link_2, new_dir)

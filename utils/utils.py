@@ -138,7 +138,8 @@ def process_config(conf, config_name="train", training=True):
         load the model config from checkpoint dir
         """
         model_config_path = (
-            "/".join(conf["training"]["load_checkpoint"].split("/")[:-1]) + "/config.json"
+            "/".join(conf["training"]["load_checkpoint"].split("/")[:-1])
+            + "/config.json"
         )
         with open(model_config_path, "r") as f:
             conf_model = json.load(f)
@@ -165,7 +166,7 @@ def process_config(conf, config_name="train", training=True):
     return conf
 
 
-def logging_related(rank, output_path=None, debug=True, training=True):
+def logging_related(rank, output_path=None, debug=False, training=True):
     logger = logging.getLogger()
 
     if rank == 0:

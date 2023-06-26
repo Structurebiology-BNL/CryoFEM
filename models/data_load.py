@@ -50,17 +50,17 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         simulated_map = (simulated_map - simulated_map.min()) / (
             simulated_map.max() - simulated_map.min()
-        )     
+        )
         if self.training and self.augmentation:
             training_transform = torchio.Compose(
-            [
-                torchio.RandomAnisotropy(
-                    downsampling=1.5, image_interpolation="bspline", p=0.25
-                ),
-                torchio.RandomBlur((0, 0.5), p=0.25),
-                torchio.RandomNoise(std=0.1, p=0.25),
-            ]
-        )
+                [
+                    torchio.RandomAnisotropy(
+                        downsampling=1.5, image_interpolation="bspline", p=0.25
+                    ),
+                    torchio.RandomBlur((0, 0.5), p=0.25),
+                    torchio.RandomNoise(std=0.1, p=0.25),
+                ]
+            )
             input_map = torchio.ScalarImage(tensor=input_map[None, ...])
             input_map = training_transform(input_map)
             input_map = input_map.tensor.squeeze().numpy().astype(np.float32)
