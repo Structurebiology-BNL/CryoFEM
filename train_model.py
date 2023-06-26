@@ -9,7 +9,7 @@ from timeit import default_timer as timer
 from skimage.metrics import structural_similarity
 from tqdm import tqdm
 from models.map_splitter import reconstruct_maps
-from models.unet import UNetRes, UNet
+from models.unet import UNetRes
 from utils.utils import (
     load_data,
     EarlyStopper,
@@ -31,13 +31,14 @@ def train(conf):
         else "cpu"
     )
     train_dataloader, val_dataloader = load_data(conf, training=True)
-    if conf.model.model_type == "unetres":
+    if "n_channel" in conf.model:
+        model = UNetRes(
+            nc=conf.model.n_channel,
+            n_blocks=conf.model.n_blocks,
+            act_mode=conf.model.act_mode,
+        ).to(device)
+    else:
         model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-            device
-        )
-
-    elif conf.model.model_type == "unet":
-        model = UNet(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
             device
         )
 
@@ -50,23 +51,26 @@ def train(conf):
         optimizer = torch.optim.Adam(
             model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
         )
-    step_size = conf.training.scheduler_step_size
-    lr_decay = conf.training.lr_decay
     scheduler = torch.optim.lr_scheduler.StepLR(
-        optimizer, step_size=step_size, gamma=lr_decay
+        optimizer,
+        step_size=conf.training.scheduler_step_size,
+        gamma=conf.training.lr_decay,
     )
+    # if using PyTorch 2.0, use torch.compile to accelerate the training
+    if float(torch.__version__[:3]) >= 2.0:
+        logging.info("Using PyTorch 2.0, use torch.compile to accelerate the training")
+        model = torch.compile(model)
     if conf.training.load_checkpoint:
         logging.info(
-            "Resume training and load model from {}".format(conf.training.load_checkpoint)
+            "Resume training and load model from {}".format(
+                conf.training.load_checkpoint
+            )
         )
         checkpoint = torch.load(conf.training.load_checkpoint)
         model.load_state_dict(checkpoint["model_state"])
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
 
-    # if using PyTorch 2.0, use torch.compile to accelerate the training
-    if float(torch.__version__[:3]) >= 2.0:
-        model = torch.compile(model)
     logging.info(
         "Total train samples {}, val samples {}".format(
             len(train_dataloader), len(val_dataloader)
@@ -86,9 +90,8 @@ def train(conf):
     for epoch in range(EPOCHS):
         model.train()
         train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
-        for i, (x_train, y_train, original_shape, id) in enumerate(
-            tqdm(train_dataloader)
-        ):
+        train_loss_l1, train_loss_cc = 0.0, 0.0
+        for x_train, y_train, original_shape, id in tqdm(train_dataloader):
             x_train = x_train.squeeze()
             y_train = y_train.squeeze()
             y_pred = torch.tensor(())
@@ -105,7 +108,7 @@ def train(conf):
                     )
                 optimizer.zero_grad(set_to_none=True)
                 y_pred_partial = model(x_train_partial)
-                loss_ = criterion(y_pred_partial, y_train_partial)
+                _, _, loss_ = criterion(y_pred_partial, y_train_partial)
                 loss_.backward()
                 y_pred = torch.cat(
                     (y_pred, y_pred_partial.squeeze(dim=1).detach().cpu()), dim=0
@@ -125,29 +128,31 @@ def train(conf):
                 box_size=conf.data.box_size,
                 core_size=conf.data.core_size,
             )
-
-            struc_sim += structural_similarity(y_pred_recon, y_train_recon)
-            pcc += pearson_cc(y_pred_recon, y_train_recon)
-            psnr += peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
-            train_loss += (
-                criterion(
-                    torch.from_numpy(y_pred_recon).to(device),
-                    torch.from_numpy(y_train_recon).to(device),
-                )
-                .detach()
-                .cpu()
-                .numpy()
+            tmp_ssim = structural_similarity(y_pred_recon, y_train_recon)
+            tmp_pcc = pearson_cc(y_pred_recon, y_train_recon)
+            tmp_psnr = peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
+            tmp_loss_l1, tmp_loss_cc, tmp_loss = criterion(
+                torch.from_numpy(y_pred_recon).to(device),
+                torch.from_numpy(y_train_recon).to(device),
             )
 
+            struc_sim += tmp_ssim
+            pcc += tmp_pcc
+            psnr += tmp_psnr
+            train_loss += tmp_loss.detach().cpu().numpy()
+            train_loss_l1 += tmp_loss_l1.detach().cpu().numpy()
+            train_loss_cc += tmp_loss_cc.detach().cpu().numpy()
             logging.info(
                 "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                "psnr: {:.2f}, pcc: {:.4f}".format(
+                "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
                     epoch + 1,
-                    train_loss / (i + 1),
+                    tmp_loss,
                     id[0],
-                    struc_sim / (i + 1),
-                    psnr / (i + 1),
-                    pcc / (i + 1),
+                    tmp_ssim,
+                    tmp_psnr,
+                    tmp_pcc,
+                    tmp_loss_l1,
+                    tmp_loss_cc,
                 )
             )
 
@@ -175,7 +180,8 @@ def train(conf):
         with torch.no_grad():
             best_val_loss = 1000.0
             val_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
-            for i, (x_val, y_val, original_shape, id) in enumerate(val_dataloader):
+            val_loss_l1, val_loss_cc = 0.0, 0.0
+            for x_val, y_val, original_shape, id in val_dataloader:
                 x_val = x_val.squeeze()
                 y_val = y_val.squeeze()
                 y_val_pred = torch.tensor(())
@@ -204,27 +210,31 @@ def train(conf):
                     box_size=conf.data.box_size,
                     core_size=conf.data.core_size,
                 )
-                struc_sim += structural_similarity(y_val_pred_recon, y_val_recon)
-                pcc += pearson_cc(y_val_pred_recon, y_val_recon)
-                psnr += peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
-                val_loss += (
-                    criterion(
-                        torch.from_numpy(y_val_pred_recon).to(device),
-                        torch.from_numpy(y_val_recon).to(device),
-                    )
-                    .detach()
-                    .cpu()
-                    .numpy()
+                tmp_ssim = structural_similarity(y_val_pred_recon, y_val_recon)
+                tmp_pcc = pearson_cc(y_val_pred_recon, y_val_recon)
+                tmp_psnr = peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
+                tmp_loss_l1, tmp_loss_cc, tmp_loss = criterion(
+                    torch.from_numpy(y_val_pred_recon).to(device),
+                    torch.from_numpy(y_val_recon).to(device),
                 )
+
+                struc_sim += tmp_ssim
+                pcc += tmp_pcc
+                psnr += tmp_psnr
+                val_loss += tmp_loss.detach().cpu().numpy()
+                val_loss_l1 += tmp_loss_l1.detach().cpu().numpy()
+                val_loss_cc += tmp_loss_cc.detach().cpu().numpy()
                 logging.info(
                     "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                    "psnr: {:.2f}, pcc: {:.4f}".format(
+                    "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
                         epoch + 1,
-                        val_loss / (i + 1),
+                        tmp_loss,
                         id[0],
-                        struc_sim / (i + 1),
-                        psnr / (i + 1),
-                        pcc / (i + 1),
+                        tmp_ssim,
+                        tmp_psnr,
+                        tmp_pcc,
+                        tmp_loss_l1,
+                        tmp_loss_cc,
                     )
                 )
             val_loss = val_loss / len(val_dataloader)
@@ -254,7 +264,7 @@ def train(conf):
                     file_name = (
                         conf.output_path
                         + "/"
-                        + "s".format(epoch + 1)
+                        + "Epoch_{}".format(epoch + 1)
                         + "_ssim_{:.3f}".format(val_struc_sim)
                         + "_psnr_{:.2f}".format(val_psnr)
                         + "_pcc_{:.3f}".format(val_pcc)
@@ -293,7 +303,7 @@ if __name__ == "__main__":
     """
     logging related part
     """
-    logging_related(rank=0, output_path=conf.output_path, debug=conf.general.debug)
+    logging_related(rank=0, output_path=conf.output_path)
     writer = SummaryWriter(log_dir=conf.output_path)
     train(conf)
     writer.flush()

@@ -82,20 +82,13 @@ def load_data_ddp(conf, rank, world_size, training=True):
 
 def load_data(conf, training=True):
     if training:
-        id_path = conf.data.emd_id_path
-    else:
-        id_path = conf.test_data.emd_id_path
-    with open(id_path) as file:
-        lines = file.readlines()
-        id_list = [line.rstrip() for line in lines]
+        with open(conf.data.train_id_path) as file:
+            lines = file.readlines()
+            train_id = [line.rstrip() for line in lines]
+        with open(conf.data.val_id_path) as file:
+            lines = file.readlines()
+            val_id = [line.rstrip() for line in lines]
 
-    if training:
-        RANDOM_SEED = int(conf.general.seed)
-        np.random.seed(RANDOM_SEED)
-        val_size = int(conf.training.val_ratio * len(id_list))
-        rng = np.random.default_rng(RANDOM_SEED)
-        val_id = list(rng.choice(id_list, size=val_size, replace=False))
-        train_id = list(set(id_list).difference(val_id))
         train_data = CryoEM_Map_Dataset(
             conf.data.data_path,
             train_id,
@@ -122,6 +115,9 @@ def load_data(conf, training=True):
         return train_dataloader, val_dataloader
 
     else:
+        with open(conf.test_data.emd_id_path) as file:
+            lines = file.readlines()
+            id_list = [line.rstrip() for line in lines]
         test_data = CryoEM_Map_TestDataset(
             conf.test_data.data_path,
             id_list,
@@ -136,15 +132,20 @@ def load_data(conf, training=True):
         return test_dataloader
 
 
-def process_config(conf, config_name="train"):
-    if conf["model"]["load_checkpoint"]:
+def process_config(conf, config_name="train", training=True):
+    if conf["training"]["load_checkpoint"] and training:
         """
         load the model config from checkpoint dir
         """
         model_config_path = (
-            "/".join(conf["model"]["load_checkpoint"].split("/")[:-1]) + "/config.json"
+            "/".join(conf["training"]["load_checkpoint"].split("/")[:-1])
+            + "/config.json"
         )
         with open(model_config_path, "r") as f:
+            conf_model = json.load(f)
+        conf["model"] = conf_model["model"]
+    if not training:
+        with open(conf["checkpoint"]["model_config"], "r") as f:
             conf_model = json.load(f)
         conf["model"] = conf_model["model"]
     output_path = None
@@ -152,7 +153,6 @@ def process_config(conf, config_name="train"):
         output_path = (
             Path("./results/")
             / config_name
-            / Path(conf["model"]["model_type"] + "_" + str(conf["model"]["n_blocks"]))
             / Path(
                 str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
             )
@@ -166,7 +166,7 @@ def process_config(conf, config_name="train"):
     return conf
 
 
-def logging_related(rank, output_path=None, debug=True, training=True):
+def logging_related(rank, output_path=None, debug=False, training=True):
     logger = logging.getLogger()
 
     if rank == 0:
@@ -208,11 +208,11 @@ def pearson_cc(x, y):
     var_y = np.mean(y**2) - (np.mean(y)) ** 2
     mean_xy = np.mean(x * y)
 
-    return np.mean((mean_xy - mean_x * mean_y) / (np.sqrt(var_x * var_y)) + 1e-10)
+    return np.mean((mean_xy - mean_x * mean_y) / np.sqrt(var_x * var_y + 1e-12))
 
 
 def download_half_maps(emdb_id):
-    import gemmi
+    import mrcfile
 
     half_map_1 = "https://files.wwpdb.org/pub/emdb/structures/EMD-{}/other/emd_{}_half_map_1.map.gz".format(
         emdb_id, emdb_id
@@ -224,26 +224,20 @@ def download_half_maps(emdb_id):
     try:
         download_url(half_map_1, "./", filename="emd_{}_half_1.map.gz".format(emdb_id))
         download_url(half_map_2, "./", filename="emd_{}_half_2.map.gz".format(emdb_id))
-        # /content/ResEM/ResEM/emd_23274_half_1.map.gz
-        m1 = gemmi.read_ccp4_map("./emd_{}_half_1.map.gz".format(emdb_id))
-        m1_arr = np.array(m1.grid, copy=False)
-        m2 = gemmi.read_ccp4_map("./emd_{}_half_2.map.gz".format(emdb_id))
-        m2_arr = np.array(m2.grid, copy=False)
-        ## create a new map using gemmi
-        ccp4 = gemmi.Ccp4Map()
-        ccp4.grid = gemmi.FloatGrid((m1_arr + m2_arr) / 2)
-        ccp4.grid.unit_cell.set(
-            m1.grid.unit_cell.a,
-            m1.grid.unit_cell.b,
-            m1.grid.unit_cell.c,
-            m1.grid.unit_cell.alpha,
-            m1.grid.unit_cell.beta,
-            m1.grid.unit_cell.gamma,
-        )
-
-        ccp4.grid.spacegroup = m1.grid.spacegroup
-        ccp4.update_ccp4_header()
-        ccp4.write_ccp4_map("averaged_map_{}.ccp4".format(emdb_id))
+        m1 = mrcfile.open("emd_{}_half_map_1.map.gz".format(emdb_id), mode="r")
+        meta_data = m1.header
+        m2 = mrcfile.open("emd_{}_half_map_2.map.gz".format(emdb_id), mode="r")
+        average = 0.5 * (m1.data + m2.data)
+        ## create a new map using mrcfile
+        with mrcfile.new("averaged_map_{}.mrc".format(emdb_id)) as mrc:
+            mrc.set_data(average)
+            mrc.header.cella.x = meta_data.cella.x
+            mrc.header.cella.y = meta_data.cella.y
+            mrc.header.cella.z = meta_data.cella.z
+            mrc.header.nxstart = meta_data.nxstart
+            mrc.header.nystart = meta_data.nystart
+            mrc.header.nzstart = meta_data.nzstart
+        
         download_successful = True
     except:
         print("no half maps available for the EMBD-{}".format(emdb_id))

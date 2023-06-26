@@ -1,7 +1,6 @@
 import torch
 import argparse
 import json
-import datetime
 import logging
 from copy import deepcopy
 from pathlib import Path
@@ -9,9 +8,8 @@ from timeit import default_timer as timer
 from tqdm import tqdm
 import mrcfile
 from models.map_splitter import reconstruct_maps
-from models.unet import UNetRes, UNet
-from utils.utils import load_data, logging_related
-from ml_collections import config_dict
+from models.unet import UNetRes
+from utils.utils import load_data, logging_related, process_config
 
 
 def inference(conf):
@@ -24,24 +22,12 @@ def inference(conf):
         if torch.cuda.is_available()
         else "cpu"
     )
-    with open(conf["checkpoint"]["model_config"], "r") as f:
-        model_conf = json.load(f)
-    conf = {**model_conf, **conf}
-    conf = config_dict.ConfigDict(conf)
+
     dataloader = load_data(conf, training=False)
 
-    if conf["model"]["model_type"] == "unetres":
-        model = UNetRes(
-            n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
-        ).to(device)
-
-    elif conf["model"]["model_type"] == "unet":
-        model = UNet(
-            n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
-        ).to(device)
-    else:
-        raise NotImplementedError
-
+    model = UNetRes(
+        n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
+    ).to(device)
     logging.info("Load model from {}".format(conf["checkpoint"]["trained_weights"]))
     checkpoint = torch.load(conf["checkpoint"]["trained_weights"])
     model.load_state_dict(checkpoint)
@@ -72,7 +58,7 @@ def inference(conf):
             if conf["test_data"]["save_output"]:
                 input_raw_map = mrcfile.open(
                     conf["test_data"]["data_path"]
-                    + "/emd_{}/resampled_map.mrc".format(id[0]),
+                    + "/emd_{}/resampled_map_{}.mrc".format(id[0], id[0]),
                     mode="r",
                 )
                 meta_data = deepcopy(input_raw_map.header)
@@ -103,24 +89,17 @@ if __name__ == "__main__":
     """
     with open(args.inference_config, "r") as f:
         conf = json.load(f)
+    with open(conf["checkpoint"]["model_config"], "r") as f:
+        model_conf = json.load(f)
+    conf = {**conf, **model_conf}
+    conf = process_config(
+        conf, config_name=Path(args.inference_config).stem, training=False
+    )
 
-    output_path = None
-    if conf["test_data"]["save_output"]:
-        output_path = (
-            Path("./results/")
-            / Path(args.inference_config).stem
-            / Path(
-                str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
-            )
-        )
-        output_path.mkdir(parents=True, exist_ok=True)
-        conf["output_path"] = "./" + str(output_path)
-        with open(str(output_path) + "/inference_config.json", "w") as f:
-            json.dump(conf, f, indent=4)
     """
     logging related part
     """
-    logging_related(rank=0, output_path=output_path, debug=False, training=False)
+    logging_related(rank=0, output_path=conf.output_path, debug=False, training=False)
     inference(conf)
     end = timer()
     logging.info("Total time used: {:.1f}".format(end - start))

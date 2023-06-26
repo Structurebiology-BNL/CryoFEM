@@ -12,8 +12,8 @@ import argparse
 
 
 CHIMERAX_PATH = "/usr/bin/chimerax"
-OUTPUT_RESAMPLED_MAP_PATH = "/host/full_emd_data/"
-INPUT_MAP_PATH = "/host/full_emd_data/"
+OUTPUT_RESAMPLED_MAP_PATH = "/host/full_emdb_data/"
+INPUT_MAP_PATH = "/host/full_emdb_data/"
 
 
 def map_resample_and_simulation(batch, total_batches=5):
@@ -21,7 +21,6 @@ def map_resample_and_simulation(batch, total_batches=5):
     # load the id list which excludes the current training set
     with open("final_valid_ids_with_pdb_exclude_current_ones.json", "r") as f:
         ids = json.load(f)
-
     id_list = list(ids.keys())
     failed_list = []
     batch_size = len(id_list) // total_batches
