@@ -212,7 +212,7 @@ def pearson_cc(x, y):
 
 
 def download_half_maps(emdb_id):
-    import gemmi
+    import mrcfile
 
     half_map_1 = "https://files.wwpdb.org/pub/emdb/structures/EMD-{}/other/emd_{}_half_map_1.map.gz".format(
         emdb_id, emdb_id
@@ -224,26 +224,20 @@ def download_half_maps(emdb_id):
     try:
         download_url(half_map_1, "./", filename="emd_{}_half_1.map.gz".format(emdb_id))
         download_url(half_map_2, "./", filename="emd_{}_half_2.map.gz".format(emdb_id))
-        # /content/ResEM/ResEM/emd_23274_half_1.map.gz
-        m1 = gemmi.read_ccp4_map("./emd_{}_half_1.map.gz".format(emdb_id))
-        m1_arr = np.array(m1.grid, copy=False)
-        m2 = gemmi.read_ccp4_map("./emd_{}_half_2.map.gz".format(emdb_id))
-        m2_arr = np.array(m2.grid, copy=False)
-        ## create a new map using gemmi
-        ccp4 = gemmi.Ccp4Map()
-        ccp4.grid = gemmi.FloatGrid((m1_arr + m2_arr) / 2)
-        ccp4.grid.unit_cell.set(
-            m1.grid.unit_cell.a,
-            m1.grid.unit_cell.b,
-            m1.grid.unit_cell.c,
-            m1.grid.unit_cell.alpha,
-            m1.grid.unit_cell.beta,
-            m1.grid.unit_cell.gamma,
-        )
-
-        ccp4.grid.spacegroup = m1.grid.spacegroup
-        ccp4.update_ccp4_header()
-        ccp4.write_ccp4_map("averaged_map_{}.ccp4".format(emdb_id))
+        m1 = mrcfile.open("emd_{}_half_map_1.map.gz".format(emdb_id), mode="r")
+        meta_data = m1.header
+        m2 = mrcfile.open("emd_{}_half_map_2.map.gz".format(emdb_id), mode="r")
+        average = 0.5 * (m1.data + m2.data)
+        ## create a new map using mrcfile
+        with mrcfile.new("averaged_map_{}.mrc".format(emdb_id)) as mrc:
+            mrc.set_data(average)
+            mrc.header.cella.x = meta_data.cella.x
+            mrc.header.cella.y = meta_data.cella.y
+            mrc.header.cella.z = meta_data.cella.z
+            mrc.header.nxstart = meta_data.nxstart
+            mrc.header.nystart = meta_data.nystart
+            mrc.header.nzstart = meta_data.nzstart
+        
         download_successful = True
     except:
         print("no half maps available for the EMBD-{}".format(emdb_id))

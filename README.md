@@ -6,7 +6,7 @@ Our image enhancement model can be used synergistically with [AlphaFold](https:/
 
 <img src="https://github.com/Structurebiology-BNL/ResEM/blob/main/utils/flow_chart.png" width=45% height=45%>
 
-In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold), [PHENIX customized version](https://phenix-online.org/version_docs/dev-4380/reference/alphafold_in_colab.html) to implement the proposed workflow. 
+In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold) to implement the proposed workflow. 
 
 ## Requirements
 ### Update
@@ -17,7 +17,6 @@ In the manuscript we used our forked version of [OpenFold](https://github.com/em
 ResEM is developed with Python 3.9 and PyTorch 1.12. Other important packages include:
 ```
 torchio 0.18.86
-gemmi 0.5.8
 scikit-image 0.19.3 
 mrcfile 1.4.3
 numpy 1.24.1
