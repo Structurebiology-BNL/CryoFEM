@@ -1,11 +1,11 @@
 {
     "general": {
-        "seed": 3,
+        "seed": 5,
         "gpu_id": 0
     },
     "test_data": {
-        "data_path": "./example_data",
-        "emd_id_path": "/hpcgpfs01/scratch/xdai/emdb_data",
+        "data_path": "/hpcgpfs01/scratch/xdai/emdb_data",
+        "emd_id_path": "data_processing/tmp.txt",
         "save_output": 1
     },
     "checkpoint": {

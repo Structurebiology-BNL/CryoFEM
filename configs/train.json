@@ -24,7 +24,7 @@
         "scheduler_step_size": 5,
         "lr_decay": 0.3,
         "weight_decay": 0.0005,
-        "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-05-15-10-00/Epoch_1_ssim_0.989_psnr_41.74_pcc_0.543.pt"
+        "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-05-30-10-39/Epoch_1_ssim_0.991_psnr_43.40_pcc_0.562.pt"
     },
     "model": {
         "n_blocks": 2,
