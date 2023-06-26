@@ -54,7 +54,7 @@ python train_model.py --config configs/train.json
 ### Cite
 If you find our work helpful, please consider cite our work as follows:
 ```
-@article {resem2022,
+@article {resem2023,
 	author = {Dai, Xin and Wu, Longlong and Yoo, Shinjae and Liu, Qun},
 	title = {Integrating AlphaFold and deep learning for atomistic interpretation of cryo-EM maps},
 	year = {2023},
