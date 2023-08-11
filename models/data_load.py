@@ -3,7 +3,6 @@ import numpy as np
 import os
 import mrcfile
 import pathlib
-from copy import deepcopy
 import torchio
 from .map_splitter import create_cube_list
 
@@ -38,15 +37,26 @@ class CryoEM_Map_Dataset(torch.utils.data.Dataset):
         folder_name = "emd_" + str(id)
         map_dir = pathlib.Path(self.data_dir + "/{}".format(folder_name))
         os.chdir(map_dir)
-        if os.path.isfile("resampled_map_{}.mrc".format(id)):
-            input_map = mrcfile.open("resampled_map_{}.mrc".format(id), mode="r")
-        else:
-            input_map = mrcfile.open("resampled_map.mrc", mode="r")
-        input_map = deepcopy(input_map.data)
-        simulated_map = mrcfile.open(
+        # load the resampled and simulated map files
+        try:
+            if os.path.isfile("resampled_map.mrc"):
+                with mrcfile.open("resampled_map.mrc", mode="r") as input_map:
+                    input_map = input_map.data
+            else:
+                with mrcfile.open(
+                    "resampled_map_{}.mrc".format(id), mode="r"
+                ) as input_map:
+                    input_map = input_map.data
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                "Neither 'resampled_map.mrc' nor 'resampled_map_{}.mrc' were found. Please check the file paths.".format(
+                    id
+                )
+            )
+        with mrcfile.open(
             "simulated_map_{}_res_2_vol_1.mrc".format(id), mode="r"
-        )
-        simulated_map = deepcopy(simulated_map.data)
+        ) as simulated_map:
+            simulated_map = simulated_map.data
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         simulated_map = (simulated_map - simulated_map.min()) / (
             simulated_map.max() - simulated_map.min()
@@ -110,11 +120,21 @@ class CryoEM_Map_TestDataset(torch.utils.data.Dataset):
         folder_name = "emd_" + str(id)
         map_dir = pathlib.Path(self.data_dir + "/{}".format(folder_name))
         os.chdir(map_dir)
-        if os.path.isfile("resampled_map.mrc"):
-            input_map = mrcfile.open("resampled_map.mrc", mode="r")
-        else:
-            input_map = mrcfile.open("resampled_map_{}.mrc".format(id), mode="r")
-        input_map = deepcopy(input_map.data)
+        try:
+            if os.path.isfile("resampled_map.mrc"):
+                with mrcfile.open("resampled_map.mrc", mode="r") as input_map:
+                    input_map = input_map.data
+            else:
+                with mrcfile.open(
+                    "resampled_map_{}.mrc".format(id), mode="r"
+                ) as input_map:
+                    input_map = input_map.data
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                "Neither 'resampled_map.mrc' nor 'resampled_map_{}.mrc' were found. Please check the file paths.".format(
+                    id
+                )
+            )
         input_map = (input_map - input_map.min()) / (input_map.max() - input_map.min())
         original_shape = input_map.shape
         input_cube_list = np.array(
