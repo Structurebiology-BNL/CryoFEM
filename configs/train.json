@@ -13,13 +13,11 @@
         "core_size": 100
     },
     "training": {
-        "optimizer": "adamW",
         "epochs": 40,
         "batch_size": 2,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
         "cc_weight": 0.1,
-        "cc_type": "pcc",
         "lr": 1e-05,
         "scheduler_step_size": 6,
         "lr_decay": 0.3,

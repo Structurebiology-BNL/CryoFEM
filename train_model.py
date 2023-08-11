@@ -1,12 +1,12 @@
 import torch
 import argparse
 import json
+import os
 import logging
 from pathlib import Path
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.tensorboard import SummaryWriter
 from timeit import default_timer as timer
-from skimage.metrics import structural_similarity
 from tqdm import tqdm
 from models.map_splitter import reconstruct_maps
 from models.unet import UNetRes
@@ -30,27 +30,20 @@ def train(conf):
         if torch.cuda.is_available()
         else "cpu"
     )
+    # load data
     train_dataloader, val_dataloader = load_data(conf, training=True)
-    if "n_channel" in conf.model:
-        model = UNetRes(
-            nc=conf.model.n_channel,
-            n_blocks=conf.model.n_blocks,
-            act_mode=conf.model.act_mode,
-        ).to(device)
-    else:
-        model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
-            device
+    logging.info(
+        "Total train samples {}, val samples {}".format(
+            len(train_dataloader), len(val_dataloader)
         )
-
-    lr = conf.training.lr
-    if conf.training.optimizer == "adamW":
-        optimizer = torch.optim.AdamW(
-            model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
-        )
-    else:  # default is adam
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=lr, weight_decay=conf.training.weight_decay
-        )
+    )
+    # load model, optimizer, scheduler
+    model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+        device
+    )
+    optimizer = torch.optim.AdamW(
+        model.parameters(), lr=conf.training.lr, weight_decay=conf.training.weight_decay
+    )
     scheduler = torch.optim.lr_scheduler.StepLR(
         optimizer,
         step_size=conf.training.scheduler_step_size,
@@ -71,25 +64,19 @@ def train(conf):
         optimizer.load_state_dict(checkpoint["optimizer"])
         scheduler.load_state_dict(checkpoint["scheduler"])
 
-    logging.info(
-        "Total train samples {}, val samples {}".format(
-            len(train_dataloader), len(val_dataloader)
-        )
-    )
+    # define loss function
     criterion = Composite_Loss(
         loss_1_type=conf.training.loss_1_type,
         beta=conf.training.smooth_l1_beta,
-        cc_type=conf.training.cc_type,
         cc_weight=conf.training.cc_weight,
-        device=device,
     )
-    EPOCHS = conf.training.epochs
     batch_size = conf.training.batch_size
     torch.backends.cudnn.benchmark = True
     early_stopper = EarlyStopper(patience=6, mode="min")
-    for epoch in range(EPOCHS):
+    best_models = []
+    for epoch in range(1, conf.training.epochs + 1):
         model.train()
-        train_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
+        train_loss, pcc, psnr = 0.0, 0.0, 0.0
         train_loss_l1, train_loss_cc = 0.0, 0.0
         for x_train, y_train, original_shape, id in tqdm(train_dataloader):
             x_train = x_train.squeeze()
@@ -128,27 +115,23 @@ def train(conf):
                 box_size=conf.data.box_size,
                 core_size=conf.data.core_size,
             )
-            tmp_ssim = structural_similarity(y_pred_recon, y_train_recon)
             tmp_pcc = pearson_cc(y_pred_recon, y_train_recon)
             tmp_psnr = peak_signal_to_noise_ratio(y_pred_recon, y_train_recon)
             tmp_loss_l1, tmp_loss_cc, tmp_loss = criterion(
                 torch.from_numpy(y_pred_recon).to(device),
                 torch.from_numpy(y_train_recon).to(device),
             )
-
-            struc_sim += tmp_ssim
             pcc += tmp_pcc
             psnr += tmp_psnr
             train_loss += tmp_loss.detach().cpu().numpy()
             train_loss_l1 += tmp_loss_l1.detach().cpu().numpy()
             train_loss_cc += tmp_loss_cc.detach().cpu().numpy()
             logging.info(
-                "Epoch {}, running loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
-                    epoch + 1,
+                "Epoch {}, running loss: {:.4f}, EMDB-{} psnr: {:.2f},\n"
+                "pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
+                    epoch,
                     tmp_loss,
                     id[0],
-                    tmp_ssim,
                     tmp_psnr,
                     tmp_pcc,
                     tmp_loss_l1,
@@ -159,27 +142,24 @@ def train(conf):
         scheduler.step()
         lr = scheduler.get_last_lr()[0]
         train_loss = train_loss / len(train_dataloader)
-        train_struc_sim = struc_sim / len(train_dataloader)
         train_pcc = pcc / len(train_dataloader)
         train_psnr = psnr / len(train_dataloader)
         writer.add_scalars(
             "train",
             {
                 "loss": train_loss,
-                "struc_sim": train_struc_sim,
                 "pcc": train_pcc,
                 "psnr": train_psnr,
                 "lr": lr,
             },
-            epoch + 1,
+            epoch,
         )
         """
         Validation
         """
         model.eval()
         with torch.no_grad():
-            best_val_loss = 1000.0
-            val_loss, struc_sim, pcc, psnr = 0.0, 0.0, 0.0, 0.0
+            val_loss, pcc, psnr = 0.0, 0.0, 0.0
             val_loss_l1, val_loss_cc = 0.0, 0.0
             for x_val, y_val, original_shape, id in val_dataloader:
                 x_val = x_val.squeeze()
@@ -210,27 +190,23 @@ def train(conf):
                     box_size=conf.data.box_size,
                     core_size=conf.data.core_size,
                 )
-                tmp_ssim = structural_similarity(y_val_pred_recon, y_val_recon)
                 tmp_pcc = pearson_cc(y_val_pred_recon, y_val_recon)
                 tmp_psnr = peak_signal_to_noise_ratio(y_val_pred_recon, y_val_recon)
                 tmp_loss_l1, tmp_loss_cc, tmp_loss = criterion(
                     torch.from_numpy(y_val_pred_recon).to(device),
                     torch.from_numpy(y_val_recon).to(device),
                 )
-
-                struc_sim += tmp_ssim
                 pcc += tmp_pcc
                 psnr += tmp_psnr
                 val_loss += tmp_loss.detach().cpu().numpy()
                 val_loss_l1 += tmp_loss_l1.detach().cpu().numpy()
                 val_loss_cc += tmp_loss_cc.detach().cpu().numpy()
                 logging.info(
-                    "Epoch {}, running validation loss: {:.4f}, EMDB-{} ssim: {:.4f},\n"
-                    "psnr: {:.2f}, pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
-                        epoch + 1,
+                    "Epoch {}, running validation loss: {:.4f}, EMDB-{} psnr: {:.2f},\n"
+                    "pcc: {:.4f}, l1 loss: {:.4f}, cc loss: {:.4f}".format(
+                        epoch,
                         tmp_loss,
                         id[0],
-                        tmp_ssim,
                         tmp_psnr,
                         tmp_pcc,
                         tmp_loss_l1,
@@ -238,49 +214,56 @@ def train(conf):
                     )
                 )
             val_loss = val_loss / len(val_dataloader)
-            val_struc_sim = struc_sim / len(val_dataloader)
             val_psnr = psnr / len(val_dataloader)
             val_pcc = pcc / len(val_dataloader)
             writer.add_scalars(
                 "val",
                 {
                     "loss": val_loss,
-                    "struc_sim": val_struc_sim,
                     "pcc": val_pcc,
                     "psnr": val_psnr,
                 },
-                epoch + 1,
+                epoch,
             )
             if early_stopper.early_stop(val_loss):
+                logging.info("Early stopping at epoch {}...".format(epoch))
                 break
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                if not conf.general.debug:
-                    state = {
-                        "model_state": model.state_dict(),
-                        "optimizer": optimizer.state_dict(),
-                        "scheduler": scheduler.state_dict(),
-                    }
-                    file_name = (
-                        conf.output_path
-                        + "/"
-                        + "Epoch_{}".format(epoch + 1)
-                        + "_ssim_{:.3f}".format(val_struc_sim)
-                        + "_psnr_{:.2f}".format(val_psnr)
-                        + "_pcc_{:.3f}".format(val_pcc)
-                    )
-                    torch.save(state, file_name + ".pt")
+            if (
+                len(best_models) < 2
+                or val_loss < best_models[-1][0]
+                and not conf.general.debug
+            ):  # save the best top-2 models
+                state = {
+                    "model_state": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "scheduler": scheduler.state_dict(),
+                }
+                file_name = (
+                    conf.output_path
+                    + "/"
+                    + "Epoch_{}".format(epoch)
+                    + "_psnr_{:.2f}".format(val_psnr)
+                    + "_pcc_{:.3f}".format(val_pcc)
+                )
+                logging.info("\n------------ Save the best model ------------")
+                torch.save(state, file_name + ".pt")
+
+                # Remove the lowest scoring model if we already have 2 models
+                if len(best_models) == 2:
+                    _, old_file_name = best_models.pop()
+                    os.remove(old_file_name + ".pt")
+
+                # Add the new model to the list and sort it
+                best_models.append((val_loss, file_name))
+                best_models.sort(key=lambda x: x[0])
 
         logging.info(
-            "Epoch {} train loss: {:.4f}, val loss: {:.4f},\n"
-            "train ssim: {:.4f}, val ssim: {:.4f}, lr = {}\n"
+            "Epoch {} train loss: {:.4f}, val loss: {:.4f}, lr = {:.1e}\n"
             "train psnr: {:.2f}, val psnr {:.2f}\n"
             "train pcc: {:.4f}, val pcc: {:.4f}\n".format(
-                epoch + 1,
+                epoch,
                 train_loss,
                 val_loss,
-                train_struc_sim,
-                val_struc_sim,
                 lr,
                 train_psnr,
                 val_psnr,
@@ -294,7 +277,7 @@ if __name__ == "__main__":
     start = timer()
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--config", type=str, default=None, help="Name of configuration file"
+        "--config", type=str, default=None, help="Name of training configuration file"
     )
     args = parser.parse_args()
     with open(args.config, "r") as f:

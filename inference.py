@@ -2,7 +2,6 @@ import torch
 import argparse
 import json
 import logging
-from copy import deepcopy
 from pathlib import Path
 from timeit import default_timer as timer
 from tqdm import tqdm
@@ -13,29 +12,28 @@ from utils.utils import load_data, logging_related, process_config
 
 
 def inference(conf):
-    assert conf["checkpoint"]["trained_weights"] is not None
-    RANDOM_SEED = int(conf["general"]["seed"])
+    assert conf.checkpoint.trained_weights is not None
+    RANDOM_SEED = int(conf.general.seed)
     torch.manual_seed(RANDOM_SEED)
     torch.cuda.manual_seed(RANDOM_SEED)
     device = (
-        torch.device("cuda:{}".format(conf["general"]["gpu_id"]))
+        torch.device("cuda:{}".format(conf.general.gpu_id))
         if torch.cuda.is_available()
         else "cpu"
     )
 
     dataloader = load_data(conf, training=False)
 
-    model = UNetRes(
-        n_blocks=conf["model"]["n_blocks"], act_mode=conf["model"]["act_mode"]
-    ).to(device)
-    logging.info("Load model from {}".format(conf["checkpoint"]["trained_weights"]))
-    checkpoint = torch.load(conf["checkpoint"]["trained_weights"])
+    model = UNetRes(n_blocks=conf.model.n_blocks, act_mode=conf.model.act_mode).to(
+        device
+    )
+    logging.info("Load model from {}".format(conf.checkpoint.trained_weights))
+    checkpoint = torch.load(conf.checkpoint.trained_weights)
     model.load_state_dict(checkpoint)
 
     logging.info("Start inference for {} samples".format(len(dataloader)))
-    batch_size = conf["training"]["batch_size"]
+    batch_size = conf.training.batch_size
     torch.backends.cudnn.benchmark = True
-
     model.eval()
     with torch.no_grad():
         for x, original_shape, id in tqdm(dataloader):
@@ -52,18 +50,18 @@ def inference(conf):
             y_pred_recon = reconstruct_maps(
                 y_pred.numpy(),
                 original_shape,
-                box_size=conf["data"]["box_size"],
-                core_size=conf["data"]["core_size"],
+                box_size=conf.data.box_size,
+                core_size=conf.data.core_size,
             )
-            if conf["test_data"]["save_output"]:
-                input_raw_map = mrcfile.open(
-                    conf["test_data"]["data_path"]
+            if conf.test_data.save_output:
+                with mrcfile.open(
+                    conf.test_data.data_path
                     + "/emd_{}/resampled_map_{}.mrc".format(id[0], id[0]),
                     mode="r",
-                )
-                meta_data = deepcopy(input_raw_map.header)
+                ) as input_raw_map:
+                    meta_data = input_raw_map.header
                 with mrcfile.new(
-                    conf["output_path"] + "/pred_{}.mrc".format(id[0])
+                    conf.output_path + "/pred_{}.mrc".format(id[0])
                 ) as mrc:
                     mrc.set_data(y_pred_recon)
                     mrc.header.cella.x = meta_data.cella.x
@@ -78,7 +76,7 @@ if __name__ == "__main__":
     start = timer()
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--inference_config",
+        "--config",
         type=str,
         default=None,
         help="Path of inference configuration file",
@@ -87,14 +85,12 @@ if __name__ == "__main__":
     """
     Read configuration and dump the configuration to output dir
     """
-    with open(args.inference_config, "r") as f:
+    with open(args.config, "r") as f:
         conf = json.load(f)
     with open(conf["checkpoint"]["model_config"], "r") as f:
         model_conf = json.load(f)
     conf = {**conf, **model_conf}
-    conf = process_config(
-        conf, config_name=Path(args.inference_config).stem, training=False
-    )
+    conf = process_config(conf, config_name=Path(args.config).stem, training=False)
 
     """
     logging related part

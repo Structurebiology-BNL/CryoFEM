@@ -129,7 +129,14 @@ def map_resample(input_map_1, input_map_2=None):
         anti_aliasing_sigma=None,
     )
 
-    resampled_map = (resampled_map - resampled_map.min()) / (resampled_map.max() - resampled_map.min())
+    resampled_map = (resampled_map - resampled_map.min()) / (
+        resampled_map.max() - resampled_map.min()
+    )
     input_cube_list = np.array(create_cube_list(resampled_map))
 
-    return resampled_map, averaged_map, torch.tensor(input_cube_list, dtype=torch.float), meta_data
+    return (
+        resampled_map,
+        averaged_map,
+        torch.tensor(input_cube_list, dtype=torch.float),
+        meta_data,
+    )

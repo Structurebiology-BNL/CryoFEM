@@ -132,21 +132,16 @@ def load_data(conf, training=True):
         return test_dataloader
 
 def process_config(conf, config_name="train", training=True):
-    if conf["training"]["load_checkpoint"] and training:
-        """
-        load the model config from checkpoint dir
-        """
-        model_config_path = (
-            "/".join(conf["training"]["load_checkpoint"].split("/")[:-1])
-            + "/config.json"
-        )
+    if training:
+        if "load_checkpoint" in conf["training"]:
+            model_config_path = (
+                "/".join(conf["training"]["load_checkpoint"].split("/")[:-1])
+                + "/config.json"
+            )
         with open(model_config_path, "r") as f:
             conf_model = json.load(f)
         conf["model"] = conf_model["model"]
-    if not training:
-        with open(conf["checkpoint"]["model_config"], "r") as f:
-            conf_model = json.load(f)
-        conf["model"] = conf_model["model"]
+
     output_path = None
     if not conf["general"]["debug"]:
         output_path = (
@@ -236,7 +231,7 @@ def download_half_maps(emdb_id):
             mrc.header.nxstart = meta_data.nxstart
             mrc.header.nystart = meta_data.nystart
             mrc.header.nzstart = meta_data.nzstart
-        
+
         download_successful = True
     except:
         print("no half maps available for the EMBD-{}".format(emdb_id))
