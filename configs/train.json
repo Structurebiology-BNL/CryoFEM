@@ -5,9 +5,9 @@
         "debug": 0
     },
     "data": {
-        "data_path": "/host/full_emdb_data",
-        "train_id_path": "data_processing/train_ids_30_identity.txt",
-        "val_id_path": "data_processing/val_ids_30_identity.txt",
+        "data_path": "/hpcgpfs01/scratch/xdai/emdb_data",
+        "train_id_path": "data_processing/train_ids_cutoff_0.3.txt",
+        "val_id_path": "data_processing/val_ids_30_cutoff_0.3.txt",
         "augmentation": 1,
         "box_size": 128,
         "core_size": 100
@@ -24,7 +24,7 @@
         "scheduler_step_size": 6,
         "lr_decay": 0.3,
         "weight_decay": 0.0005,
-        "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-05-30-10-39/Epoch_1_ssim_0.991_psnr_43.40_pcc_0.562.pt"
+        "load_checkpoint": 0
     },
     "model": {
         "n_blocks": 2,
