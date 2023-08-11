@@ -134,14 +134,14 @@ def load_data(conf, training=True):
 
 def process_config(conf, config_name="train", training=True):
     if training:
-        if "load_checkpoint" in conf["training"]:
+        if conf["training"]["load_checkpoint"]:
             model_config_path = (
                 "/".join(conf["training"]["load_checkpoint"].split("/")[:-1])
                 + "/config.json"
             )
-        with open(model_config_path, "r") as f:
-            conf_model = json.load(f)
-        conf["model"] = conf_model["model"]
+            with open(model_config_path, "r") as f:
+                conf_model = json.load(f)
+            conf["model"] = conf_model["model"]
 
     output_path = None
     if not conf["general"]["debug"]:
