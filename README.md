@@ -7,6 +7,7 @@ Our image enhancement model can be used synergistically with [AlphaFold](https:/
 <img src="https://github.com/Structurebiology-BNL/ResEM/blob/main/utils/flow_chart.png" width=45% height=45%>
 
 In the manuscript we used our forked version of [OpenFold](https://github.com/empyriumz/openfold), which enables us to use custom template to perform structural predictions. Alternatively, one can use ColabFold [official](https://github.com/sokrypton/ColabFold) to implement the proposed workflow. 
+See [here](https://github.com/Structurebiology-BNL/ResEM/blob/main/utils/workflow_instructions.MD) for a more detailed instructions to use [ColabFold]((https://github.com/sokrypton/ColabFold)) and [PHENIX](https://phenix-online.org/) to perform the model refinement.
 
 ## Requirements
 ### Update
