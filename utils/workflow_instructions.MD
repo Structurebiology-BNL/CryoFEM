@@ -1,16 +1,16 @@
 ### AlphaFold model
 The simplest way to get the AlphaFold prediction is using [ColabFold](https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb).
 * **Initial prediction**
-    * Use the `pdb100` (updated from `pdb70`) database for the template search
+    * Use the `pdb100` (updated from `pdb70`) database for the template search.
     * Use the default settings for MSA and Amber-relaxation.
 * **Rebuilding with Phenix**
     * After rebuilding the model with Phenix (see below), supply the rebuilt model as a template for the second round of prediction.
-    * Set `template_mode=custom`` and upload the rebuilt model in the ColabFold notebook.
+    * Set `template_mode=custom` and upload the rebuilt model in the ColabFold notebook.
 
 * **Custom Template Runs:**
     * Conduct two runs with or without MSA when using the custom template.
     * Proceed with the one with higher correlations with the raw map.
-    * Turn off the MSA by setting `msa_mode=single_sequence`` in the ColabFold notebook.
+    * Turn off the MSA by setting `msa_mode=single_sequence` in the ColabFold notebook.
 ### Phenix model building
 This is an example script of using `phenix.dock_and_rebuild` to refine a model against the (enhanced) cryo-EM map
 ```bash
@@ -29,7 +29,7 @@ When the refinement is done, you can check the model quality using the following
 
 * Map-model FSC
     ```bash
-    phenix.mtriage map_file pdb_fil
+    phenix.mtriage map_file pdb_file
     ```
 * Chain comparison
     * In case the ground truth model is available e.g., deposited PDB, you can also use the following command to evaluate the model quality:
