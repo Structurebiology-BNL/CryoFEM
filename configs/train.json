@@ -7,13 +7,13 @@
     "data": {
         "data_path": "/hpcgpfs01/scratch/xdai/emdb_data",
         "train_id_path": "data_processing/train_ids_cutoff_0.3.txt",
-        "val_id_path": "data_processing/val_ids_30_cutoff_0.3.txt",
+        "val_id_path": "data_processing/val_ids_cutoff_0.3.txt",
         "augmentation": 1,
         "box_size": 128,
         "core_size": 100
     },
     "training": {
-        "epochs": 40,
+        "epochs": 2,
         "batch_size": 2,
         "loss_1_type": "l1",
         "smooth_l1_beta": 0.1,
@@ -22,7 +22,7 @@
         "scheduler_step_size": 6,
         "lr_decay": 0.3,
         "weight_decay": 0.0005,
-        "load_checkpoint": 0
+        "load_checkpoint": "/hpcgpfs01/scratch/xdai/resem_training/train/2023-08-14-10-47/Epoch_2_psnr_43.20_pcc_0.573.pt"
     },
     "model": {
         "n_blocks": 2,

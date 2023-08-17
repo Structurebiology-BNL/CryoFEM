@@ -133,26 +133,26 @@ def load_data(conf, training=True):
 
 def process_config(conf, config_name="train", training=True):
     if training:
-        if "load_checkpoint" in conf["training"]:
+        if conf["training"]["load_checkpoint"]:
             model_config_path = (
                 "/".join(conf["training"]["load_checkpoint"].split("/")[:-1])
                 + "/config.json"
             )
-        with open(model_config_path, "r") as f:
-            conf_model = json.load(f)
-        conf["model"] = conf_model["model"]
+            with open(model_config_path, "r") as f:
+                conf_model = json.load(f)
+            conf["model"] = conf_model["model"]
 
     output_path = None
     if not conf["general"]["debug"]:
         output_path = (
-            Path("./results/")
+            Path("/hpcgpfs01/scratch/xdai/resem_training")
             / config_name
             / Path(
                 str(datetime.datetime.now())[:16].replace(" ", "-").replace(":", "-")
             )
         )
         output_path.mkdir(parents=True, exist_ok=True)
-        conf["output_path"] = "./" + str(output_path)
+        conf["output_path"] = str(output_path)
         with open(str(output_path) + "/config.json", "w") as f:
             json.dump(conf, f, indent=4)
 
