@@ -65,7 +65,7 @@ def create_cube_list(full_image, box_size=64, core_size=50):
 
 
 # Takes the output of the CNN and reconstructs the full dimensionality of the protein.
-def reconstruct_maps(cube_list, image_shape, box_size=64, core_size=50):
+def reconstruct_maps(cube_list, image_shape, box_size=128, core_size=100):
     extract_start = int((box_size - core_size) / 2)
     extract_end = int((box_size - core_size) / 2) + core_size
     dimensions = get_manifest_dimensions(image_shape, core_size=core_size)
@@ -92,7 +92,7 @@ def reconstruct_maps(cube_list, image_shape, box_size=64, core_size=50):
     return reconstruct_image
 
 
-def map_resample(input_map_1, input_map_2=None):
+def map_resample(input_map_1, input_map_2=None, box_size=128, core_size=100):
     def get_voxel_size(input_map):
         vol_x, vol_y, vol_z = (
             float(input_map.voxel_size.x),
@@ -132,7 +132,9 @@ def map_resample(input_map_1, input_map_2=None):
     resampled_map = (resampled_map - resampled_map.min()) / (
         resampled_map.max() - resampled_map.min()
     )
-    input_cube_list = np.array(create_cube_list(resampled_map))
+    input_cube_list = np.array(
+        create_cube_list(resampled_map, box_size=box_size, core_size=core_size)
+    )
 
     return (
         resampled_map,

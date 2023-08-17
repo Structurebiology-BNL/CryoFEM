@@ -10,6 +10,6 @@
     },
     "checkpoint": {
         "model_config": "models/trained_weights/config.json",
-        "trained_weights": "models/trained_weights/ResEM_128_state_dict.pt"
+        "trained_weights": "models/trained_weights/CryoFEM_128_state_dict.pt"
     }
 }
