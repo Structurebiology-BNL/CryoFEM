@@ -1,5 +1,5 @@
 ## Introduction
-This is the official implementation of CryoFEM (**Cryo-EM** **F**eature **E**nhancement **M**odel)[[preprint](https://www.biorxiv.org/content/10.1101/2023.02.02.526877)], an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. Utilizing 3D convolutional neural networks, it effectively enhances the quality of density maps, facilitating more precise interpretation at the atomic level.
+This is the official implementation of CryoFEM (**Cryo-EM** **F**eature **E**nhancement **M**odel)[[preprint](https://www.biorxiv.org/content/10.1101/2023.02.02.526877)], an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It effectively enhances the quality of density maps, facilitating more precise interpretation at the atomic level.
 
 Our image enhancement model can be used synergistically with [AlphaFold](https://github.com/deepmind/alphafold) and protein model refinement tools, e.g., [PHENIX](https://phenix-online.org/), to tackle cases where initial AlphaFold predictions are less accurate.
 
