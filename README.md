@@ -1,5 +1,5 @@
 ## Introduction
-This is the official implementation of CryoFEM (**Cryo-EM** **F**eature **E**nhancement **M**odel)[[preprint](https://www.biorxiv.org/content/10.1101/2023.02.02.526877)], an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It can effectively increase the resolution (calculated from FSC) of the density map hence facilitate better map interpretation at the atomic level.
+This is the official implementation of CryoFEM (**Cryo-EM** **F**eature **E**nhancement **M**odel)[[paper](https://doi.org/10.1093/bib/bbad405)], an image enhancement tool based on 3D convolutional neural networks for cryo-EM density map post-processing. It can effectively increase the resolution (calculated from FSC) of the density map hence facilitate better map interpretation at the atomic level.
 
 
 Our image enhancement model can be used synergistically with [AlphaFold](https://github.com/deepmind/alphafold) and protein model refinement tools, e.g., [PHENIX](https://phenix-online.org/), to tackle cases where initial AlphaFold predictions are less accurate.
@@ -11,9 +11,10 @@ See [here](https://github.com/Structurebiology-BNL/CryoFEM/blob/main/utils/workf
 
 ## Requirements
 ### Update
-* March 2023: Try our Colab notebook to run CryoFEM on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb). Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb) for more details.
+* Nov 23: Our paper has been published in _Briefings in Bioinformatics_. Check it out [here](https://doi.org/10.1093/bib/bbad405).
+* Mar 23: Try our Colab notebook to run CryoFEM on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb). Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb) for more details.
   
-* March 2023: We have tested CryoFEM with PyTorch 2.0. By default if you run the training script with PyTorch 2.0, it will first compile to model with `torch.compile` to accelerate the training
+* Mar 23: We have tested CryoFEM with PyTorch 2.0. By default if you run the training script with PyTorch 2.0, it will first compile to model with `torch.compile` to accelerate the training
 
 CryoFEM is developed with Python 3.9 and PyTorch 1.12. Other important packages include:
 ```
@@ -55,14 +56,18 @@ python train_model.py --config configs/train.json
 ### Cite
 If you find our work helpful, please consider cite our work as follows:
 ```
-@article {CryoFEM2023,
-	author = {Dai, Xin and Wu, Longlong and Yoo, Shinjae and Liu, Qun},
-	title = {Integrating AlphaFold and deep learning for atomistic interpretation of cryo-EM maps},
-	year = {2023},
-	doi = {10.1101/2023.02.02.526877},
-	publisher = {Cold Spring Harbor Laboratory},
-	URL = {https://www.biorxiv.org/content/10.1101/2023.02.02.526877},
-	journal = {bioRxiv}
+@article{CryoFEM2023,
+    author = {Dai, Xin and Wu, Longlong and Yoo, Shinjae and Liu, Qun},
+    title = "{Integrating AlphaFold and deep learning for atomistic interpretation of cryo-EM maps}",
+    journal = {Briefings in Bioinformatics},
+    volume = {24},
+    number = {6},
+    pages = {bbad405},
+    year = {2023},
+    month = {11},
+    issn = {1477-4054},
+    doi = {10.1093/bib/bbad405},
+    url = {https://doi.org/10.1093/bib/bbad405},
 }
 ```
 
