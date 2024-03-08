@@ -10,8 +10,9 @@ See [here](https://github.com/Structurebiology-BNL/CryoFEM/blob/main/utils/workf
 
 ## Requirements
 ### Update
+* Mar 24: We have updated the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb) to make it more robust (support multiple runs and avoid google drive issues).
 * Nov 23: Our paper has been published in _Briefings in Bioinformatics_. Check it out [here](https://doi.org/10.1093/bib/bbad405).
-* Mar 23: Try our Colab notebook to run CryoFEM on Google Colab [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb). Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb) for more details.
+* Mar 23: Try our Colab notebook to run CryoFEM on Google Colab. Simply upload your own half maps and run the prediction, then you can see the visualization and download the enhanced map. Check the [Colab notebook](https://colab.research.google.com/github/Structurebiology-BNL/CryoFEM/blob/main/Colab_CryoFEM.ipynb) for more details.
   
 * Mar 23: We have tested CryoFEM with PyTorch 2.0. By default if you run the training script with PyTorch 2.0, it will first compile to model with `torch.compile` to accelerate the training
 
