@@ -42,12 +42,10 @@ def pcc_loss(output, target):
         mean_x = torch.mean(x, dim=(-1, -2, -3))
         mean_y = torch.mean(y, dim=(-1, -2, -3))
         var_x = (
-            torch.mean(x**2, dim=(-1, -2, -3))
-            - (torch.mean(x, dim=(-1, -2, -3))) ** 2
+            torch.mean(x**2, dim=(-1, -2, -3)) - (torch.mean(x, dim=(-1, -2, -3))) ** 2
         )
         var_y = (
-            torch.mean(y**2, dim=(-1, -2, -3))
-            - (torch.mean(y, dim=(-1, -2, -3))) ** 2
+            torch.mean(y**2, dim=(-1, -2, -3)) - (torch.mean(y, dim=(-1, -2, -3))) ** 2
         )
         mean_xy = torch.mean(x * y, dim=(-1, -2, -3))
         pcc = torch.mean(
